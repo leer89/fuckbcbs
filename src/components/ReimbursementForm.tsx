@@ -1,13 +1,19 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import SignaturePad from './SignaturePad';
+import TurnstileWidget from './TurnstileWidget';
 import type { FormData } from '@/types/form';
+
+export interface SecurityTokens {
+  turnstileToken: string;
+  honeypot: string;
+}
 
 interface ReimbursementFormProps {
   data: FormData;
   onChange: (field: keyof FormData, value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, security: SecurityTokens) => void;
   isSubmitting: boolean;
   submitSuccess: boolean;
   submitError: string | null;
@@ -36,6 +42,9 @@ export default function ReimbursementForm({
   submitSuccess,
   submitError,
 }: ReimbursementFormProps) {
+  const [honeypot, setHoneypot] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+
   const handleChange = useCallback(
     (field: keyof FormData) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -54,8 +63,27 @@ export default function ReimbursementForm({
     [onChange]
   );
 
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => onSubmit(e, { turnstileToken, honeypot }),
+    [onSubmit, turnstileToken, honeypot]
+  );
+
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
+  const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
+
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 p-6 overflow-y-auto h-full">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-6 overflow-y-auto h-full">
+      {/* Honeypot — hidden from real users, bots fill it in */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+        <input
+          type="text"
+          name="website"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
 
       {/* Header */}
       <div className="pb-4 border-b border-gray-200">
@@ -237,6 +265,14 @@ export default function ReimbursementForm({
         </p>
       </section>
 
+      {/* Turnstile */}
+      <div>
+        <TurnstileWidget onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} />
+        {!turnstileToken && (
+          <p className="text-xs text-gray-400 mt-1">Complete the security check above to submit.</p>
+        )}
+      </div>
+
       {/* Submit */}
       <div className="flex flex-col gap-2 pb-4">
         {submitSuccess && (
@@ -251,8 +287,8 @@ export default function ReimbursementForm({
         )}
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 text-white font-semibold rounded-md text-sm transition-colors"
+          disabled={isSubmitting || !turnstileToken}
+          className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold rounded-md text-sm transition-colors"
         >
           {isSubmitting ? 'Saving...' : 'Save & Submit Form'}
         </button>

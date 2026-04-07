@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import ReimbursementForm from '@/components/ReimbursementForm';
+import ReimbursementForm, { type SecurityTokens } from '@/components/ReimbursementForm';
 import PDFPreview from '@/components/PDFPreview';
 import { initialFormData } from '@/types/form';
 import type { FormData } from '@/types/form';
@@ -32,7 +32,7 @@ export default function Home() {
   }, []);
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: React.FormEvent, security: SecurityTokens) => {
       e.preventDefault();
       setIsSubmitting(true);
       setSubmitSuccess(false);
@@ -42,7 +42,7 @@ export default function Home() {
         const res = await fetch('/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, ...security }),
         });
 
         const json = await res.json();
