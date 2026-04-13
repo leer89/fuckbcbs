@@ -8,9 +8,9 @@ const renderToBufferMock = vi.fn();
 vi.mock('@react-pdf/renderer', () => ({ renderToBuffer: renderToBufferMock }));
 
 // Mock the PDF document component so imports don't try to resolve React/Next runtime
-vi.mock('@/components/BCNPDFDocument', () => {
-  return function BCNPDFDocument() { return null; };
-});
+vi.mock('@/components/BCNPDFDocument', () => ({
+  default: function BCNPDFDocument() { return null; },
+}));
 
 const sendFaxMock = vi.fn();
 vi.mock('@/lib/telnyx', () => ({ sendFax: sendFaxMock }));
