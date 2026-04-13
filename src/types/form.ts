@@ -9,6 +9,8 @@ export interface FormData {
   stateZip: string;
   claimDescription: string;
   signatureData: string;
+  receipts?: string[]; // data URLs or storage paths
+  medicalCode?: string; // selected medical/procedure code
   signatureDate: string;
 }
 
@@ -23,5 +25,7 @@ export const initialFormData: FormData = {
   stateZip: '',
   claimDescription: '',
   signatureData: '',
+  receipts: [],
+  medicalCode: '',
   signatureDate: new Date().toISOString().split('T')[0],
 };

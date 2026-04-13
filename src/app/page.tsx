@@ -10,6 +10,7 @@ const DEBOUNCE_MS = 350;
 
 export default function Home() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [isMobile, setIsMobile] = useState(false);
   // Debounced version fed into the PDF preview so it doesn't thrash on every keystroke
   const [debouncedData, setDebouncedData] = useState<FormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,6 +24,19 @@ export default function Home() {
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [formData]);
+
+  // Detect mobile devices to hide preview and enable camera inputs
+  useEffect(() => {
+    const check = () => {
+      if (typeof window === 'undefined') return;
+      const ua = navigator.userAgent || '';
+      const mobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(ua) || window.matchMedia('(pointer:coarse)').matches;
+      setIsMobile(mobile);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const handleChange = useCallback((field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -64,7 +78,7 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* Left panel — form */}
-      <div className="w-1/2 h-full overflow-hidden border-r border-gray-300 bg-white shadow-md">
+      <div className={`${isMobile ? 'w-full' : 'w-1/2'} h-full overflow-hidden border-r border-gray-300 bg-white shadow-md`}>
         <ReimbursementForm
           data={formData}
           onChange={handleChange}
@@ -72,13 +86,16 @@ export default function Home() {
           isSubmitting={isSubmitting}
           submitSuccess={submitSuccess}
           submitError={submitError}
+          isMobile={isMobile}
         />
       </div>
 
       {/* Right panel — live PDF preview */}
-      <div className="w-1/2 h-full overflow-hidden bg-gray-200">
-        <PDFPreview data={debouncedData} />
-      </div>
+      {!isMobile && (
+        <div className="w-1/2 h-full overflow-hidden bg-gray-200">
+          <PDFPreview data={debouncedData} />
+        </div>
+      )}
     </div>
   );
 }
