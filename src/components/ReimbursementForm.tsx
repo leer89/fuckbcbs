@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import SignaturePad from './SignaturePad';
 import TurnstileWidget from './TurnstileWidget';
 import type { FormData } from '@/types/form';
-import { SPARROW_LOCATIONS, ALL_LOCATIONS } from '@/data/locations';
+import { LOCATION_CODES, ALL_LOCATIONS } from '@/data/locations';
 
 export interface SecurityTokens {
   turnstileToken: string;
@@ -36,119 +36,6 @@ const inputClass =
 const textareaClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-y';
 
-const MEDICAL_CODES: string[] = [
-  // Evaluation & Management — Office Visits
-  '99202 — Office visit, new patient, low complexity',
-  '99203 — Office visit, new patient, moderate complexity',
-  '99204 — Office visit, new patient, moderate-high complexity',
-  '99205 — Office visit, new patient, high complexity',
-  '99211 — Office visit, established, minimal',
-  '99212 — Office visit, established, low complexity',
-  '99213 — Office visit, established, moderate complexity',
-  '99214 — Office visit, established, moderate-high complexity',
-  '99215 — Office visit, established, high complexity',
-  // Urgent Care / Emergency
-  '99051 — Service after hours/weekends/holidays',
-  '99058 — Office emergency',
-  '99281 — ED visit, minimal severity',
-  '99282 — ED visit, low severity',
-  '99283 — ED visit, moderate severity',
-  '99284 — ED visit, high severity',
-  '99285 — ED visit, high severity with threat to life',
-  // Wound Care / Skin
-  '10060 — Incision & drainage of abscess, simple',
-  '10061 — Incision & drainage of abscess, complicated',
-  '10120 — Removal of foreign body, subcutaneous, simple',
-  '10180 — Incision & drainage, complex postoperative wound',
-  '12001 — Simple repair superficial wounds up to 2.5 cm',
-  '12002 — Simple repair superficial wounds 2.6–7.5 cm',
-  '12011 — Simple repair of face/scalp 2.5 cm or less',
-  '12013 — Simple repair of face/scalp 2.6–5.0 cm',
-  '12015 — Simple repair of face/scalp 5.1–7.5 cm',
-  '17110 — Destruction of benign skin lesions, up to 14',
-  '17111 — Destruction of benign skin lesions, 15 or more',
-  // Musculoskeletal
-  '20600 — Joint aspiration/injection, small joint',
-  '20605 — Joint aspiration/injection, intermediate joint',
-  '20610 — Joint aspiration/injection, major joint',
-  '29125 — Short arm splint, static',
-  '29126 — Short arm splint, dynamic',
-  '29130 — Finger splint, static',
-  '29131 — Finger splint, dynamic',
-  '29505 — Long leg splint',
-  '29515 — Short leg splint',
-  '29540 — Strapping, ankle and/or foot',
-  // Imaging / X-ray
-  '71045 — Chest X-ray, 1 view',
-  '71046 — Chest X-ray, 2 views',
-  '73000 — X-ray clavicle',
-  '73060 — X-ray humerus, minimum 2 views',
-  '73100 — X-ray wrist, 2 views',
-  '73110 — X-ray wrist, minimum 3 views',
-  '73120 — X-ray hand, 2 views',
-  '73130 — X-ray hand, minimum 3 views',
-  '73140 — X-ray finger(s)',
-  '73500 — X-ray hip, 1 view',
-  '73510 — X-ray hip, complete, minimum 2 views',
-  '73562 — X-ray knee, 2 views',
-  '73564 — X-ray knee, 4 or more views',
-  '73600 — X-ray ankle, 2 views',
-  '73610 — X-ray ankle, minimum 3 views',
-  '73620 — X-ray foot, 2 views',
-  '73630 — X-ray foot, minimum 3 views',
-  '73660 — X-ray toe(s)',
-  // Cardiac
-  '93000 — Electrocardiogram (ECG), with interpretation',
-  '93005 — ECG tracing only',
-  // Lab — Collection
-  '36415 — Collection of venous blood by venipuncture',
-  '36416 — Capillary blood collection',
-  // Lab — Panels
-  '80047 — Basic metabolic panel',
-  '80053 — Comprehensive metabolic panel',
-  '80061 — Lipid panel',
-  '85025 — Complete blood count (CBC) with differential',
-  '85027 — Complete blood count (CBC) without differential',
-  '85610 — Prothrombin time (PT)',
-  // Lab — Urinalysis
-  '81001 — Urinalysis, automated with microscopy',
-  '81002 — Urinalysis, non-automated, without microscopy',
-  '81003 — Urinalysis, automated, without microscopy',
-  // Lab — Rapid/Microbiology
-  '86308 — Monospot/heterophile antibody test',
-  '87070 — Culture, bacterial, any source',
-  '87081 — Culture, presumptive, pathogenic organisms',
-  '87086 — Urine culture, bacterial',
-  '87340 — Hepatitis B surface antigen (HBsAg)',
-  '87400 — Influenza A & B antigen detection',
-  '87420 — RSV antigen',
-  '87430 — Streptococcus A antigen',
-  '87491 — Chlamydia trachomatis detection by nucleic acid',
-  '87502 — COVID-19 detection, multiple targets',
-  '87503 — COVID-19 & influenza, multiple targets',
-  '87591 — Neisseria gonorrhoeae detection by nucleic acid',
-  '87804 — Influenza rapid test',
-  '87880 — Strep A rapid test',
-  // Injections / IV / Infusion
-  '90471 — Immunization administration, first injection',
-  '90472 — Immunization administration, each additional',
-  '96360 — IV infusion, hydration, 31 min–1 hr',
-  '96361 — IV infusion, hydration, each additional hour',
-  '96365 — IV infusion, therapeutic, 1st hour',
-  '96366 — IV infusion, therapeutic, each additional hour',
-  '96372 — Therapeutic/prophylactic/diagnostic injection, subcutaneous/IM',
-  '96374 — IV push, single or initial substance',
-  '96375 — IV push, each additional substance',
-  // Respiratory
-  '94640 — Nebulizer treatment, single',
-  '94664 — Aerosol or vapor inhalation, initial demonstration',
-  '94760 — Pulse oximetry, single determination',
-  '94761 — Pulse oximetry, multiple determinations',
-  // Other Procedures
-  '69210 — Removal of impacted cerumen (ear wax)',
-  '92012 — Ophthalmological services, established patient',
-  '99070 — Supplies/materials provided',
-];
 
 export default function ReimbursementForm({
   data,
@@ -210,8 +97,6 @@ export default function ReimbursementForm({
   const handleLocationChange = useCallback(
     (location: string) => {
       onChange('urgentCareLocation', location);
-      // Clear codes when switching locations
-      onChange('selectedMedicalCodes', []);
       setCodeQuery('');
     },
     [onChange]
@@ -406,10 +291,9 @@ export default function ReimbursementForm({
               {showCodeDropdown && codeQuery.length >= 2 && (
                 <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-auto">
                   {(() => {
-                    const locationCodes = SPARROW_LOCATIONS[data.urgentCareLocation!] ?? [];
-                    const allCodes = [...MEDICAL_CODES, ...locationCodes];
+                    const locationCodes = LOCATION_CODES[data.urgentCareLocation!] ?? [];
                     const q = codeQuery.toLowerCase();
-                    const matches = allCodes
+                    const matches = locationCodes
                       .filter((o) => o.toLowerCase().includes(q))
                       .filter((o) => !(data.selectedMedicalCodes ?? []).includes(o))
                       .slice(0, 30);
