@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import SignaturePad from './SignaturePad';
 import TurnstileWidget from './TurnstileWidget';
 import type { FormData } from '@/types/form';
@@ -51,6 +51,10 @@ export default function ReimbursementForm({
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState('');
+  // Holds the original synthetic event reference so we can fire it after confirm
+  const pendingSubmitRef = React.useRef<React.FormEvent | null>(null);
 
   const handleChange = useCallback(
     (field: keyof FormData) =>
@@ -121,10 +125,27 @@ export default function ReimbursementForm({
     [data.selectedMedicalCodes, onChange]
   );
 
+  // First click: show confirmation modal
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => onSubmit(e, { turnstileToken, honeypot }),
-    [onSubmit, turnstileToken, honeypot]
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      setConfirmEmail(data.email);
+      pendingSubmitRef.current = e;
+      setShowConfirmModal(true);
+    },
+    [data.email]
   );
+
+  // Second click (inside modal): actually submit
+  const handleConfirmSubmit = useCallback(() => {
+    // Sync confirmed email back to form state if user edited it
+    if (confirmEmail !== data.email) {
+      onChange('email', confirmEmail);
+    }
+    setShowConfirmModal(false);
+    // Fire a synthetic submit through the normal path
+    onSubmit(pendingSubmitRef.current!, { turnstileToken, honeypot });
+  }, [confirmEmail, data.email, onChange, onSubmit, turnstileToken, honeypot]);
 
   const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
   const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
@@ -503,6 +524,53 @@ export default function ReimbursementForm({
           </p>
         )}
       </div>
+
+      {/* Email confirmation modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Confirm your email address</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              We'll email you a submission confirmation and notify you once BCN's fax machine confirms receipt.
+            </p>
+
+            <label className="text-sm font-medium text-gray-700 block mb-1">Email address</label>
+            <input
+              type="email"
+              className={inputClass}
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              autoFocus
+            />
+
+            <div className="mt-4 bg-blue-50 border border-blue-100 rounded-md p-3 text-xs text-blue-800 space-y-1">
+              <p><strong>What happens after you submit:</strong></p>
+              <p>1. Your form is faxed to BCN at 1-866-637-4972</p>
+              <p>2. You'll get a confirmation email immediately</p>
+              <p>3. Once BCN's fax machine confirms receipt, you'll get a second email</p>
+              <p>4. If the fax fails, we retry up to 3 times and email you the result</p>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Go back
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={!confirmEmail || isSubmitting}
+                className="flex-1 py-2 rounded-md bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+              >
+                {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer — web only, never rendered in the PDF */}
       <div className="pt-4 pb-6 border-t border-gray-100 flex flex-col items-center gap-3">
