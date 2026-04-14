@@ -25,6 +25,8 @@ const submitSchema = z.object({
   city: z.string().max(100).default(''),
   stateZip: z.string().max(20).default(''),
   claimDescription: z.string().max(5000).default(''),
+  urgentCareLocation: z.string().max(200).optional().default(''),
+  selectedMedicalCodes: z.array(z.string().max(200)).max(100).optional().default([]),
   signatureData: z.string().optional().default(''),
   signatureDate: z.string().optional().default(''),
 });
@@ -89,8 +91,25 @@ export async function POST(req: NextRequest) {
   const {
     email, enrolleeId, enrolleeName, patientName,
     patientDob, address, city, stateZip,
-    claimDescription, signatureData, signatureDate,
+    claimDescription, urgentCareLocation, selectedMedicalCodes,
+    signatureData, signatureDate,
   } = body;
+
+  // Compose the full claim description from structured + free-text fields
+  const fullClaimDescription = (() => {
+    const parts: string[] = [];
+    if (urgentCareLocation) {
+      parts.push(urgentCareLocation);
+      for (const code of selectedMedicalCodes ?? []) {
+        parts.push(`- ${code}`);
+      }
+    }
+    if (claimDescription?.trim()) {
+      if (parts.length > 0) parts.push('');
+      parts.push(claimDescription.trim());
+    }
+    return parts.join('\n');
+  })();
 
   const { data: submission, error: submissionError } = await supabase
     .from('reimbursement_submissions')
@@ -103,7 +122,7 @@ export async function POST(req: NextRequest) {
       address,
       city,
       state_zip: stateZip,
-      claim_description: claimDescription,
+      claim_description: fullClaimDescription,
       signature_data: signatureData || null,
       signature_date: signatureDate || null,
     }])

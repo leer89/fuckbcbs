@@ -38,7 +38,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const handleChange = useCallback((field: keyof FormData, value: string) => {
+  const handleChange = useCallback((field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Reset submission state when editing
     setSubmitSuccess(false);

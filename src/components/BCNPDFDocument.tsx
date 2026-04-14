@@ -257,6 +257,24 @@ interface BCNPDFDocumentProps {
   data: FormData;
 }
 
+function buildCommentText(data: FormData): string {
+  const parts: string[] = [];
+
+  if (data.urgentCareLocation) {
+    parts.push(data.urgentCareLocation);
+    for (const code of data.selectedMedicalCodes ?? []) {
+      parts.push(`- ${code}`);
+    }
+  }
+
+  if (data.claimDescription?.trim()) {
+    if (parts.length > 0) parts.push('');
+    parts.push(data.claimDescription.trim());
+  }
+
+  return parts.join('\n');
+}
+
 export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
   return (
     <Document title="BCN Member Reimbursement Form" author="Blue Care Network">
@@ -345,57 +363,65 @@ export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
           </View>
           <Text style={styles.commentsLabel}>Description/explanation of claim:</Text>
           <View style={{ borderBottom: 1, borderBottomColor: '#000', minHeight: 90, paddingHorizontal: 5, paddingBottom: 5 }}>
-            <Text style={styles.commentsArea}>{data.claimDescription}</Text>
+            <Text style={styles.commentsArea}>{buildCommentText(data)}</Text>
           </View>
 
-          {/* Section 3 - Signature */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderText}>Section 3 - Signature</Text>
-          </View>
-          <Text style={styles.sigStatement}>
-            The above statements and attachments are true and complete to the best of my knowledge.
-          </Text>
-          <View style={styles.signatureRow}>
-            <View style={styles.signatureCell}>
-              <Text style={styles.signatureXLabel}>X</Text>
-              {data.signatureData ? (
-                <Image src={data.signatureData} style={styles.signatureImg} />
-              ) : (
-                <View style={{ borderBottom: 1, borderBottomColor: '#000', width: 200, marginTop: 12 }} />
-              )}
-              <Text style={styles.signatureLabel}>Signature</Text>
-            </View>
-            <View style={styles.dateCell}>
-              <Text style={styles.dateLabel}>Date</Text>
-              <Text style={styles.dateValue}>{data.signatureDate}</Text>
-            </View>
-          </View>
+          {/* Sections 3 + 4 — kept together; if comments have consumed enough space
+              that less than 250pt remains on the current page, react-pdf breaks
+              these sections to a new page (left/right border lines continue). */}
+          <View minPresenceAhead={250}>
 
-          {/* Section 4 - Instructions */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderText}>Section 4 - Instructions</Text>
-          </View>
-          <View style={styles.instrRow}>
-            <View style={styles.instrLeft}>
-              <Text style={styles.instrBold}>Fax to : 1-866-637-4972</Text>
-              <Text style={styles.instrText}>Or</Text>
-              <Text style={styles.instrText}>Mail to:</Text>
-              <Text style={styles.instrBold}>Member Reimbursements - G802</Text>
-              <Text style={styles.instrBold}>Blue Care Network</Text>
-              <Text style={styles.instrBold}>P.O. Box 68767</Text>
-              <Text style={styles.instrBold}>Grand Rapids, MI 49516-8767</Text>
+            {/* Section 3 - Signature */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>Section 3 - Signature</Text>
             </View>
-            <View style={styles.instrRight}>
-              <Text style={styles.instrBold}>Questions? Call Customer Service</Text>
-              <Text style={styles.instrBold}>1-800-662-6667</Text>
-              <Text style={styles.instrBold}>1-800-257-9980 (TTY users)</Text>
-              <Text style={styles.instrBold}>8 a.m. to 5:30 p.m. Monday through Friday</Text>
+            <Text style={styles.sigStatement}>
+              The above statements and attachments are true and complete to the best of my knowledge.
+            </Text>
+            {/* wrap={false} prevents the signature row itself from splitting mid-row */}
+            <View wrap={false} style={styles.signatureRow}>
+              <View style={styles.signatureCell}>
+                <Text style={styles.signatureXLabel}>X</Text>
+                {data.signatureData ? (
+                  <Image src={data.signatureData} style={styles.signatureImg} />
+                ) : (
+                  <View style={{ borderBottom: 1, borderBottomColor: '#000', width: 200, marginTop: 12 }} />
+                )}
+                <Text style={styles.signatureLabel}>Signature</Text>
+              </View>
+              <View style={styles.dateCell}>
+                <Text style={styles.dateLabel}>Date</Text>
+                <Text style={styles.dateValue}>{data.signatureDate}</Text>
+              </View>
             </View>
-          </View>
 
-          <Text style={styles.keepCopy}>
-            Please keep a copy of all documents you send us. Allow 30 days for processing
-          </Text>
+            {/* Section 4 - Instructions */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>Section 4 - Instructions</Text>
+            </View>
+            <View style={styles.instrRow}>
+              <View style={styles.instrLeft}>
+                <Text style={styles.instrBold}>Fax to : 1-866-637-4972</Text>
+                <Text style={styles.instrText}>Or</Text>
+                <Text style={styles.instrText}>Mail to:</Text>
+                <Text style={styles.instrBold}>Member Reimbursements - G802</Text>
+                <Text style={styles.instrBold}>Blue Care Network</Text>
+                <Text style={styles.instrBold}>P.O. Box 68767</Text>
+                <Text style={styles.instrBold}>Grand Rapids, MI 49516-8767</Text>
+              </View>
+              <View style={styles.instrRight}>
+                <Text style={styles.instrBold}>Questions? Call Customer Service</Text>
+                <Text style={styles.instrBold}>1-800-662-6667</Text>
+                <Text style={styles.instrBold}>1-800-257-9980 (TTY users)</Text>
+                <Text style={styles.instrBold}>8 a.m. to 5:30 p.m. Monday through Friday</Text>
+              </View>
+            </View>
+
+            <Text style={styles.keepCopy}>
+              Please keep a copy of all documents you send us. Allow 30 days for processing
+            </Text>
+
+          </View>{/* end minPresenceAhead wrapper */}
 
         </View>
 

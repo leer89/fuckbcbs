@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import SignaturePad from './SignaturePad';
 import TurnstileWidget from './TurnstileWidget';
 import type { FormData } from '@/types/form';
+import { SPARROW_LOCATIONS, ALL_LOCATIONS } from '@/data/locations';
 
 export interface SecurityTokens {
   turnstileToken: string;
@@ -12,7 +13,7 @@ export interface SecurityTokens {
 
 interface ReimbursementFormProps {
   data: FormData;
-  onChange: (field: keyof FormData, value: string) => void;
+  onChange: (field: keyof FormData, value: string | string[]) => void;
   onSubmit: (e: React.FormEvent, security: SecurityTokens) => void;
   isSubmitting: boolean;
   submitSuccess: boolean;
@@ -159,7 +160,7 @@ export default function ReimbursementForm({
   isMobile,
 }: ReimbursementFormProps) {
   const [localReceipts, setLocalReceipts] = useState<string[]>(data.receipts ?? []);
-  const [medicalCodeQuery, setMedicalCodeQuery] = useState('');
+  const [codeQuery, setCodeQuery] = useState('');
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
@@ -206,10 +207,34 @@ export default function ReimbursementForm({
     onChange('receipts' as keyof FormData, JSON.stringify(updated));
   }, [localReceipts, onChange]);
 
-  const handleMedicalCodeSelect = useCallback((code: string) => {
-    setMedicalCodeQuery(code);
-    onChange('medicalCode' as keyof FormData, code);
-  }, [onChange]);
+  const handleLocationChange = useCallback(
+    (location: string) => {
+      onChange('urgentCareLocation', location);
+      // Clear codes when switching locations
+      onChange('selectedMedicalCodes', []);
+      setCodeQuery('');
+    },
+    [onChange]
+  );
+
+  const handleCodeToggle = useCallback(
+    (code: string) => {
+      const current = data.selectedMedicalCodes ?? [];
+      const updated = current.includes(code)
+        ? current.filter((c) => c !== code)
+        : [...current, code];
+      onChange('selectedMedicalCodes', updated);
+    },
+    [data.selectedMedicalCodes, onChange]
+  );
+
+  const handleCodeRemove = useCallback(
+    (code: string) => {
+      const updated = (data.selectedMedicalCodes ?? []).filter((c) => c !== code);
+      onChange('selectedMedicalCodes', updated);
+    },
+    [data.selectedMedicalCodes, onChange]
+  );
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => onSubmit(e, { turnstileToken, honeypot }),
@@ -346,59 +371,103 @@ export default function ReimbursementForm({
           <span className="w-5 h-5 bg-blue-700 text-white rounded-full flex items-center justify-center text-xs">2</span>
           Comments
         </h2>
-        <FieldGroup label="Description / explanation of claim">
-          <textarea
-            className={textareaClass}
-            rows={5}
-            placeholder="Describe the medical service, why you paid out of pocket, and any relevant details about the claim..."
-            value={data.claimDescription}
-            onChange={handleChange('claimDescription')}
-          />
+
+        {/* Step 1 — Location */}
+        <FieldGroup label="Where did you receive care?">
+          <select
+            className={inputClass}
+            value={data.urgentCareLocation ?? ''}
+            onChange={(e) => handleLocationChange(e.target.value)}
+          >
+            <option value="">— Select a location —</option>
+            {ALL_LOCATIONS.map((loc) => (
+              <option key={loc} value={loc}>{loc}</option>
+            ))}
+          </select>
         </FieldGroup>
 
-        {/* Medical / Procedure Code searchable dropdown */}
-        <div className="mt-3 relative">
-          <FieldGroup label="Medical / Procedure Code (optional)">
-            <input
-              type="text"
-              className={inputClass}
-              placeholder="Search by code or description (e.g. 99213 or office visit)"
-              value={medicalCodeQuery}
-              onChange={(e) => {
-                setMedicalCodeQuery(e.target.value);
-                setShowCodeDropdown(true);
-                if (!e.target.value) onChange('medicalCode' as keyof FormData, '');
-              }}
-              onFocus={() => setShowCodeDropdown(true)}
-              onBlur={() => setTimeout(() => setShowCodeDropdown(false), 150)}
-            />
-            {data.medicalCode && (
-              <p className="text-xs text-blue-700 mt-1 font-medium">Selected: {data.medicalCode}</p>
-            )}
-            {showCodeDropdown && medicalCodeQuery.length >= 2 && (
-              <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-auto">
-                {MEDICAL_CODES.filter((o) =>
-                  o.toLowerCase().includes(medicalCodeQuery.toLowerCase())
-                ).slice(0, 30).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    className="block w-full text-left text-sm px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0"
-                    onMouseDown={() => {
-                      handleMedicalCodeSelect(opt);
-                      setShowCodeDropdown(false);
-                    }}
+        {/* Step 2 — Procedure code search (only shown after location is selected) */}
+        {data.urgentCareLocation && (
+          <div className="mt-3 relative">
+            <FieldGroup label="Add procedure codes (search by code or description)">
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="e.g. 99213 or office visit"
+                value={codeQuery}
+                onChange={(e) => {
+                  setCodeQuery(e.target.value);
+                  setShowCodeDropdown(true);
+                }}
+                onFocus={() => setShowCodeDropdown(true)}
+                onBlur={() => setTimeout(() => setShowCodeDropdown(false), 150)}
+                disabled={!data.urgentCareLocation}
+              />
+              {showCodeDropdown && codeQuery.length >= 2 && (
+                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-auto">
+                  {(() => {
+                    const locationCodes = SPARROW_LOCATIONS[data.urgentCareLocation!] ?? [];
+                    const allCodes = [...MEDICAL_CODES, ...locationCodes];
+                    const q = codeQuery.toLowerCase();
+                    const matches = allCodes
+                      .filter((o) => o.toLowerCase().includes(q))
+                      .filter((o) => !(data.selectedMedicalCodes ?? []).includes(o))
+                      .slice(0, 30);
+                    return matches.length > 0 ? matches.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        className="block w-full text-left text-sm px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                        onMouseDown={() => {
+                          handleCodeToggle(opt);
+                          setCodeQuery('');
+                          setShowCodeDropdown(false);
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    )) : (
+                      <p className="text-sm text-gray-400 px-3 py-2">No matching codes found.</p>
+                    );
+                  })()}
+                </div>
+              )}
+            </FieldGroup>
+
+            {/* Selected code chips */}
+            {(data.selectedMedicalCodes ?? []).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(data.selectedMedicalCodes ?? []).map((code) => (
+                  <span
+                    key={code}
+                    className="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full"
                   >
-                    {opt}
-                  </button>
+                    {code}
+                    <button
+                      type="button"
+                      onClick={() => handleCodeRemove(code)}
+                      className="text-blue-500 hover:text-red-500 font-bold leading-none"
+                      aria-label={`Remove ${code}`}
+                    >
+                      ×
+                    </button>
+                  </span>
                 ))}
-                {MEDICAL_CODES.filter((o) =>
-                  o.toLowerCase().includes(medicalCodeQuery.toLowerCase())
-                ).length === 0 && (
-                  <p className="text-sm text-gray-400 px-3 py-2">No matching codes found.</p>
-                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Step 3 — Additional comments */}
+        <div className="mt-3">
+          <FieldGroup label="Additional comments (optional)">
+            <textarea
+              className={textareaClass}
+              rows={4}
+              placeholder="Any additional details about the claim, why you paid out of pocket, etc."
+              value={data.claimDescription}
+              onChange={handleChange('claimDescription')}
+            />
           </FieldGroup>
         </div>
 

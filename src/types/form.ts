@@ -10,7 +10,8 @@ export interface FormData {
   claimDescription: string;
   signatureData: string;
   receipts?: string[]; // data URLs or storage paths
-  medicalCode?: string; // selected medical/procedure code
+  urgentCareLocation?: string; // selected Michigan urgent care location
+  selectedMedicalCodes?: string[]; // selected procedure codes
   signatureDate: string;
 }
 
@@ -26,6 +27,7 @@ export const initialFormData: FormData = {
   claimDescription: '',
   signatureData: '',
   receipts: [],
-  medicalCode: '',
+  urgentCareLocation: '',
+  selectedMedicalCodes: [],
   signatureDate: new Date().toISOString().split('T')[0],
 };
