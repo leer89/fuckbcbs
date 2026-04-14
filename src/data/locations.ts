@@ -1,26 +1,50 @@
-// Location → procedure codes mapping.
+// Location → procedure codes + NPI mapping.
 //
-// To add a new Sparrow location:
-//   1. Parse that location's CSV from https://www.uofmhealthsparrow.org/patient-resources/financial-resources/standard-charges
-//   2. Save as src/data/sparrow/<location-slug>.ts with export const SPARROW_<LOCATION>_CODES
-//   3. Add an entry here
+// To add a new location:
+//   1. Parse the facility's standard charges CSV
+//   2. Save codes as src/data/sparrow/<slug>.ts
+//   3. Add an entry here with npi (Type 2 / facility NPI) and codes
+//
+// NPI lookup: https://npiregistry.cms.hhs.gov/search
 
 import { GENERAL_URGENT_CARE_CODES } from './generalCodes';
 import { SPARROW_LANSING_CODES } from './sparrow/lansing';
 
-export const LOCATION_CODES: Record<string, readonly string[]> = {
-  // General list — common urgent care CPT codes not tied to a specific facility
-  'General Urgent Care Codes': GENERAL_URGENT_CARE_CODES,
+export interface LocationEntry {
+  /** Type 2 (organizational) NPI for the facility. Omit for generic code lists. */
+  npi?: string;
+  codes: readonly string[];
+}
 
-  // UM Health-Sparrow locations (add new ones below as CSVs become available)
-  'UM Health-Sparrow Lansing': SPARROW_LANSING_CODES,
-  // 'UM Health-Sparrow Carson':            add src/data/sparrow/carson.ts    → SPARROW_CARSON_CODES
-  // 'UM Health-Sparrow Clinton':           add src/data/sparrow/clinton.ts   → SPARROW_CLINTON_CODES
-  // 'UM Health-Sparrow Eaton':             add src/data/sparrow/eaton.ts     → SPARROW_EATON_CODES
-  // 'UM Health-Sparrow Ionia':             add src/data/sparrow/ionia.ts     → SPARROW_IONIA_CODES
-  // 'UM Health-Sparrow Specialty Hospital':add src/data/sparrow/specialty.ts → SPARROW_SPECIALTY_CODES
-  // 'UM Health-Sparrow St. Lawrence':      add src/data/sparrow/stlawrence.ts→ SPARROW_STLAWRENCE_CODES
+export const LOCATION_CODES: Record<string, LocationEntry> = {
+  // Generic list — common urgent care CPT codes, no specific facility NPI
+  'General Urgent Care Codes': {
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+
+  // UM Health-Sparrow locations
+  // NPI source: standard charges CSV header (type_2_npi column)
+  'UM Health-Sparrow Lansing': {
+    npi: '1073588711',
+    codes: SPARROW_LANSING_CODES,
+  },
+  // 'UM Health-Sparrow Carson':             { npi: 'TODO', codes: SPARROW_CARSON_CODES }
+  // 'UM Health-Sparrow Clinton':            { npi: 'TODO', codes: SPARROW_CLINTON_CODES }
+  // 'UM Health-Sparrow Eaton':              { npi: 'TODO', codes: SPARROW_EATON_CODES }
+  // 'UM Health-Sparrow Ionia':              { npi: 'TODO', codes: SPARROW_IONIA_CODES }
+  // 'UM Health-Sparrow Specialty Hospital': { npi: 'TODO', codes: SPARROW_SPECIALTY_CODES }
+  // 'UM Health-Sparrow St. Lawrence':       { npi: '1811942436', codes: SPARROW_STLAWRENCE_CODES }
 };
+
+/** Returns the procedure codes for a location, or empty array if not found. */
+export function getLocationCodes(location: string): readonly string[] {
+  return LOCATION_CODES[location]?.codes ?? [];
+}
+
+/** Returns the NPI for a location, or undefined if none (e.g. generic lists). */
+export function getLocationNpi(location: string): string | undefined {
+  return LOCATION_CODES[location]?.npi;
+}
 
 // All location names for the dropdown
 export const ALL_LOCATIONS = Object.keys(LOCATION_CODES) as string[];

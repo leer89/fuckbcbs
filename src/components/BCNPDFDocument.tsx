@@ -7,6 +7,7 @@ import {
   Image,
 } from '@react-pdf/renderer';
 import type { FormData } from '@/types/form';
+import { getLocationNpi } from '@/data/locations';
 
 const styles = StyleSheet.create({
   page: {
@@ -261,7 +262,11 @@ function buildCommentText(data: FormData): string {
   const parts: string[] = [];
 
   if (data.urgentCareLocation) {
-    parts.push(data.urgentCareLocation);
+    const npi = getLocationNpi(data.urgentCareLocation);
+    const locationLine = npi
+      ? `NPI ${npi} - ${data.urgentCareLocation}`
+      : data.urgentCareLocation;
+    parts.push(locationLine);
     for (const code of data.selectedMedicalCodes ?? []) {
       parts.push(`- ${code}`);
     }

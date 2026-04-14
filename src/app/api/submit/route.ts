@@ -4,6 +4,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import { z } from 'zod';
 import BCNPDFDocument from '@/components/BCNPDFDocument';
+import { getLocationNpi } from '@/data/locations';
 import { sendFax } from '@/lib/telnyx';
 import { sendSubmissionConfirmation } from '@/lib/email';
 import { ratelimit } from '@/lib/ratelimit';
@@ -99,7 +100,11 @@ export async function POST(req: NextRequest) {
   const fullClaimDescription = (() => {
     const parts: string[] = [];
     if (urgentCareLocation) {
-      parts.push(urgentCareLocation);
+      const npi = getLocationNpi(urgentCareLocation);
+      const locationLine = npi
+        ? `NPI ${npi} - ${urgentCareLocation}`
+        : urgentCareLocation;
+      parts.push(locationLine);
       for (const code of selectedMedicalCodes ?? []) {
         parts.push(`- ${code}`);
       }
