@@ -503,6 +503,23 @@ export default function ReimbursementForm({
           </p>
         )}
       </div>
+
+      {/* Footer — web only, never rendered in the PDF */}
+      <div className="pt-4 pb-6 border-t border-gray-100 flex flex-col items-center gap-3">
+        <p className="text-xs text-gray-400">Built for the community by</p>
+        <a
+          href="https://makotechs.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="opacity-70 hover:opacity-100 transition-opacity"
+        >
+          <img
+            src="https://makotechs.com/assets/fulllogo_nobuffer.png"
+            alt="Makotechs"
+            className="h-8 w-auto"
+          />
+        </a>
+      </div>
     </form>
   );
 }
