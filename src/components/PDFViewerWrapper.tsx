@@ -1,6 +1,7 @@
 'use client';
 
 import { usePDF } from '@react-pdf/renderer';
+import { useEffect } from 'react';
 import BCNPDFDocument from './BCNPDFDocument';
 import type { FormData } from '@/types/form';
 
@@ -9,8 +10,13 @@ interface Props {
 }
 
 export default function PDFViewerWrapper({ data }: Props) {
-  const doc = <BCNPDFDocument data={data} />;
-  const [instance] = usePDF({ document: doc });
+  const [instance, updateInstance] = usePDF({ document: <BCNPDFDocument data={data} /> });
+
+  // Re-render the PDF whenever form data changes
+  useEffect(() => {
+    updateInstance(<BCNPDFDocument data={data} />);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   return (
     <div className="flex flex-col h-full">
