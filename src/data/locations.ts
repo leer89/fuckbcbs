@@ -17,11 +17,6 @@ export interface LocationEntry {
 }
 
 export const LOCATION_CODES: Record<string, LocationEntry> = {
-  // Generic list — common urgent care CPT codes, no specific facility NPI
-  'General Urgent Care Codes': {
-    codes: GENERAL_URGENT_CARE_CODES,
-  },
-
   // ─── Lansing Urgent Care (lansingurgentcare.com) ─────────────────────────────
   // All 8 locations bill under the same organizational NPI: 1780987990
   // NPI source: NPPES NPI Registry (npiregistry.cms.hhs.gov)
