@@ -13,17 +13,24 @@ export async function sendSubmissionConfirmation({
   enrolleeName,
   patientName,
   submissionId,
+  pdfBuffer,
 }: {
   to: string;
   enrolleeName: string;
   patientName: string;
   submissionId: string;
+  pdfBuffer?: Buffer;
 }) {
   const resend = getResend();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   await resend.emails.send({
     from: `${APP_NAME} <${FROM_ADDRESS}>`,
     to,
     subject: 'Your BCN Reimbursement Form Has Been Submitted',
+    attachments: pdfBuffer ? [{
+      filename: `bcn-reimbursement-${timestamp}.pdf`,
+      content: pdfBuffer,
+    }] : undefined,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
         <div style="background: #003087; padding: 20px 24px; border-radius: 6px 6px 0 0;">

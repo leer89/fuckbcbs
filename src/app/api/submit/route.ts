@@ -234,6 +234,7 @@ export async function POST(req: NextRequest) {
       enrolleeName: enrolleeName || 'Member',
       patientName: patientName || 'Patient',
       submissionId,
+      pdfBuffer,
     }).catch((err) => console.error('Confirmation email error:', err));
   }
 
