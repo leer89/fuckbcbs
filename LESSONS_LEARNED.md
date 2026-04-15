@@ -53,6 +53,11 @@ Each entry follows this structure:
 **What was wrong:** TypeScript expects `ReactElement<DocumentProps>` but our wrapper component's props are `BCNPDFDocumentProps`. TS rejects the mismatch even though the runtime value is valid.
 **Correct approach:** Cast with `as any` — `renderToBuffer(createElement(BCNPDFDocument, props) as any)`.
 
+## 2026-04-15 — BCNPDFDocument crashes silently without explicit React import
+**What happened:** PDF preview went blank with no console errors and no error boundary catch.
+**What was wrong:** `BCNPDFDocument.tsx` used JSX without `import React from 'react'`. Next.js/SWC auto-injects React for JSX, masking the missing import in the browser build. But react-pdf's custom reconciler calls the component function in a CJS context where JSX compiles to `React.createElement` — `React` is not in scope, so it throws `ReferenceError: React is not defined` silently inside the reconciler. The iframe goes blank. No React error boundary catches it because the error is inside react-pdf's internal renderer.
+**Correct approach:** Always add `import React from 'react'` to any component used with react-pdf's renderer (`renderToBuffer`, `PDFViewer`, `usePDF`). Also: use `usePDF` hook + manual `<iframe>` instead of `<PDFViewer>` — `usePDF` exposes errors via `instance.error`, while `PDFViewer` swallows them silently.
+
 ## 2026-04-06 — PDFDownloadLink in @react-pdf/renderer v3 does not accept render props
 **What happened:** Used `{({ loading }) => <span>...</span>}` as children of `PDFDownloadLink`.
 **What was wrong:** In v3, `PDFDownloadLink` types `children` as `ReactNode`, not a render function. TypeScript rejects the function signature.
