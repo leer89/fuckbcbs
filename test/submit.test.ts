@@ -24,6 +24,10 @@ vi.mock('@/lib/ratelimit', () => ({ ratelimit: ratelimitMock }));
 const verifyTurnstileMock = vi.fn();
 vi.mock('@/lib/turnstile', () => ({ verifyTurnstile: verifyTurnstileMock }));
 
+vi.mock('@/data/locations', () => ({
+  getLocationNpi: vi.fn((location: string) => location === 'UM Health-Sparrow Lansing' ? '1073588711' : undefined),
+}));
+
 let POST: any;
 
 beforeEach(async () => {
