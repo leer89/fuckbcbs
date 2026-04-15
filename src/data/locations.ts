@@ -22,7 +22,44 @@ export const LOCATION_CODES: Record<string, LocationEntry> = {
     codes: GENERAL_URGENT_CARE_CODES,
   },
 
-  // UM Health-Sparrow locations
+  // ─── Lansing Urgent Care (lansingurgentcare.com) ─────────────────────────────
+  // All 8 locations bill under the same organizational NPI: 1780987990
+  // NPI source: NPPES NPI Registry (npiregistry.cms.hhs.gov)
+  // Codes: general urgent care CPT codes (location-specific CSV not available)
+  'Lansing Urgent Care — Frandor': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Westside': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Southside': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Okemos': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — DeWitt': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Haslett': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Mason': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+  'Lansing Urgent Care — Grand Ledge': {
+    npi: '1780987990',
+    codes: GENERAL_URGENT_CARE_CODES,
+  },
+
+  // ─── UM Health-Sparrow locations ─────────────────────────────────────────────
   // NPI source: standard charges CSV header (type_2_npi column)
   'UM Health-Sparrow Lansing': {
     npi: '1073588711',
