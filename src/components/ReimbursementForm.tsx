@@ -5,7 +5,7 @@ import SignaturePad from './SignaturePad';
 import TurnstileWidget from './TurnstileWidget';
 import type { FormData, ReceiptItem } from '@/types/form';
 import { ALL_LOCATIONS, getLocationCodes } from '@/data/locations';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 
 export interface SecurityTokens {
   turnstileToken: string;
@@ -183,14 +183,15 @@ export default function ReimbursementForm({
         if (file) {
           const ext = file.name.split('.').pop() ?? 'bin';
           const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-          const { error } = await supabase.storage
+          const sb = getSupabaseClient();
+          const { error } = await sb.storage
             .from('receipt-uploads')
             .upload(path, file, { contentType: file.type });
           if (error) {
             errors.push(file.name);
             resolved.push(receipt); // keep blob URL as fallback (will fail server-side)
           } else {
-            const { data: urlData } = supabase.storage
+            const { data: urlData } = sb.storage
               .from('receipt-uploads')
               .getPublicUrl(path);
             URL.revokeObjectURL(receipt.url);
