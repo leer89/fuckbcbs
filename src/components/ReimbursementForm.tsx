@@ -38,6 +38,42 @@ const inputClass =
 const textareaClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-y';
 
+const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i;
+
+/** Convert an image File to a grayscale JPEG Blob (max 1200px wide). Fax-safe. */
+function toGrayscaleBlob(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const maxW = 1200;
+      const scale = img.width > maxW ? maxW / img.width : 1;
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const d = imageData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+        d[i] = d[i + 1] = d[i + 2] = gray;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      URL.revokeObjectURL(blobUrl);
+      canvas.toBlob(
+        (blob) => { blob ? resolve(blob) : reject(new Error('Canvas conversion failed')); },
+        'image/jpeg',
+        0.85,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(`Failed to load: ${file.name}`)); };
+    img.src = blobUrl;
+  });
+}
+
 
 export default function ReimbursementForm({
   data,
@@ -90,19 +126,28 @@ export default function ReimbursementForm({
     [onChange]
   );
 
-  // Store files locally as blob URLs — nothing is uploaded until the user confirms submit
-  const handleAddReceipts = useCallback((files: FileList | null) => {
+  // Store files locally as blob URLs — nothing is uploaded until the user confirms submit.
+  // Images are converted to grayscale JPEG first (fax-safe, max 1200px wide).
+  const handleAddReceipts = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const newItems: ReceiptItem[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      const blobUrl = URL.createObjectURL(f);
-      pendingFilesRef.current.set(blobUrl, f);
-      newItems.push({
-        url: blobUrl,
-        label: f.name.replace(/\.[^.]+$/, ''),
-        name: f.name,
-      });
+      if (IMAGE_EXTS.test(f.name)) {
+        let blob: Blob;
+        try {
+          blob = await toGrayscaleBlob(f);
+        } catch {
+          blob = f; // fall back to original if conversion fails
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        pendingFilesRef.current.set(blobUrl, new File([blob], f.name, { type: 'image/jpeg' }));
+        newItems.push({ url: blobUrl, label: f.name.replace(/\.[^.]+$/, ''), name: f.name });
+      } else {
+        const blobUrl = URL.createObjectURL(f);
+        pendingFilesRef.current.set(blobUrl, f);
+        newItems.push({ url: blobUrl, label: f.name.replace(/\.[^.]+$/, ''), name: f.name });
+      }
     }
     onReceiptsChange([...(data.receipts ?? []), ...newItems]);
   }, [data.receipts, onReceiptsChange]);

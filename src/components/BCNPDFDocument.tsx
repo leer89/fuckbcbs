@@ -284,7 +284,9 @@ function buildCommentText(data: FormData): string {
 }
 
 export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
-  const imageReceipts = (data.receipts ?? []).filter((r) => IMAGE_EXTS.test(r.name));
+  const allReceipts = data.receipts ?? [];
+  const imageReceipts = allReceipts.filter((r) => IMAGE_EXTS.test(r.name));
+  const pdfReceipts = allReceipts.filter((r) => r.name.toLowerCase().endsWith('.pdf'));
 
   return (
     <Document title="BCN Member Reimbursement Form" author="Blue Care Network">
@@ -440,19 +442,35 @@ export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
 
       </Page>
 
-      {/* Receipt pages — one page per image attachment.
+      {/* Image receipt pages — grayscale, sized to fit within page margins.
           IMPORTANT: Never pass {[].map(...)} directly inside <Document> — react-pdf's
           reconciler crashes silently on empty arrays. Always use a ternary so the
           fallback is null (not []), which react-pdf handles correctly. */}
       {imageReceipts.length > 0 ? imageReceipts.map((r, i) => (
-        <Page key={i} size="LETTER" style={styles.page}>
+        <Page key={`img-${i}`} size="LETTER" style={styles.page}>
           <View style={{ marginBottom: 8 }}>
             <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold' }}>
               Receipt {i + 1}{r.label ? `: ${r.label}` : ''}
             </Text>
             <Text style={{ fontSize: 8, color: '#555555', marginTop: 2 }}>{r.name}</Text>
           </View>
-          <Image src={r.url} style={{ flex: 1, objectFit: 'contain' }} />
+          <Image src={r.url} style={{ maxHeight: 660, objectFit: 'contain', alignSelf: 'center' }} />
+        </Page>
+      )) : null}
+
+      {/* PDF attachment placeholder pages — react-pdf cannot embed other PDFs,
+          so we show a labeled page for each one so the fax cover reflects it. */}
+      {pdfReceipts.length > 0 ? pdfReceipts.map((r, i) => (
+        <Page key={`pdf-${i}`} size="LETTER" style={styles.page}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', marginBottom: 8 }}>
+              PDF Attachment {i + 1}{r.label ? `: ${r.label}` : ''}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#555555' }}>{r.name}</Text>
+            <Text style={{ fontSize: 8, color: '#888888', marginTop: 16, textAlign: 'center' }}>
+              This PDF document is attached and will be submitted with the claim.
+            </Text>
+          </View>
         </Page>
       )) : null}
 
