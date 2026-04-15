@@ -1,3 +1,9 @@
+export interface ReceiptItem {
+  url: string;    // Supabase Storage public URL
+  label: string;  // user-editable display label
+  name: string;   // original filename (used to detect image vs PDF)
+}
+
 export interface FormData {
   email: string;
   enrolleeId: string;
@@ -9,7 +15,7 @@ export interface FormData {
   stateZip: string;
   claimDescription: string;
   signatureData: string;
-  receipts?: string[]; // data URLs or storage paths
+  receipts?: ReceiptItem[];
   urgentCareLocation?: string; // selected Michigan urgent care location
   selectedMedicalCodes?: string[]; // selected procedure codes
   signatureDate: string;

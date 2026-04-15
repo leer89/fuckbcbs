@@ -9,6 +9,8 @@ import {
 import type { FormData } from '@/types/form';
 import { getLocationNpi } from '@/data/locations';
 
+const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i;
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 24,
@@ -281,6 +283,8 @@ function buildCommentText(data: FormData): string {
 }
 
 export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
+  const imageReceipts = (data.receipts ?? []).filter((r) => IMAGE_EXTS.test(r.name));
+
   return (
     <Document title="BCN Member Reimbursement Form" author="Blue Care Network">
       <Page size="LETTER" style={styles.page}>
@@ -434,6 +438,23 @@ export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
         <Text style={styles.pageFooter}>DF 16006 JUL 16</Text>
 
       </Page>
+
+      {/* Receipt pages — one page per image attachment.
+          IMPORTANT: Never pass {[].map(...)} directly inside <Document> — react-pdf's
+          reconciler crashes silently on empty arrays. Always use a ternary so the
+          fallback is null (not []), which react-pdf handles correctly. */}
+      {imageReceipts.length > 0 ? imageReceipts.map((r, i) => (
+        <Page key={i} size="LETTER" style={styles.page}>
+          <View style={{ marginBottom: 8 }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold' }}>
+              Receipt {i + 1}{r.label ? `: ${r.label}` : ''}
+            </Text>
+            <Text style={{ fontSize: 8, color: '#555555', marginTop: 2 }}>{r.name}</Text>
+          </View>
+          <Image src={r.url} style={{ flex: 1, objectFit: 'contain' }} />
+        </Page>
+      )) : null}
+
     </Document>
   );
 }

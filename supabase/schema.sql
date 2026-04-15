@@ -69,3 +69,16 @@ create policy "Allow anon uploads to reimbursement-pdfs"
 create policy "Allow public reads from reimbursement-pdfs"
   on storage.objects for select to anon
   using (bucket_id = 'reimbursement-pdfs');
+
+-- ── Storage bucket for receipt uploads ────────────────────────────────────────
+insert into storage.buckets (id, name, public)
+values ('receipt-uploads', 'receipt-uploads', true)
+on conflict (id) do nothing;
+
+create policy "Allow anon uploads to receipt-uploads"
+  on storage.objects for insert to anon
+  with check (bucket_id = 'receipt-uploads');
+
+create policy "Allow public reads from receipt-uploads"
+  on storage.objects for select to anon
+  using (bucket_id = 'receipt-uploads');

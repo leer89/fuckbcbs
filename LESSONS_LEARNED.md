@@ -18,6 +18,16 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-14 — react-pdf Document crashes silently on empty array children
+**What happened:** Added `{(data.receipts ?? []).filter(...).map(...)}` inside `<Document>`. When receipts was empty, `.map()` returned `[]`, killing the PDFViewer (blank/black iframe, no error surfaced).
+**What was wrong:** react-pdf's reconciler does not handle `[]` (empty array) as a direct child of `<Document>`. It crashes silently — the iframe goes blank and no React error boundary catches it.
+**Correct approach:** Never use `{array.map(...)}` directly inside `<Document>` if the array might be empty. Always use a ternary with a `null` fallback: `{items.length > 0 ? items.map(...) : null}`. Pre-compute the filtered array outside JSX so the check is clean.
+
+## 2026-04-14 — NEXT_PUBLIC_ env vars must be added to Vercel separately
+**What happened:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` was defined in `.env.local` but missing from Vercel, causing a `TurnstileError: got "undefined"` on the deployed site.
+**What was wrong:** `.env.local` is gitignored and never deployed. Vercel has its own env var store. Any `NEXT_PUBLIC_` key (baked into the client bundle at build time) must be added manually in Vercel → Project → Settings → Environment Variables, then a redeploy triggered.
+**Correct approach:** After adding any new env var to `.env.local`, immediately add it to Vercel too. All vars in `.env.local` must have a matching entry in Vercel.
+
 ## 2026-04-06 — next.config.ts not supported in Next.js 14
 **What happened:** Created `next.config.ts` for Next.js 14.2.15.
 **What was wrong:** Next.js 14 does not support TypeScript config files. Build fails with "Configuring Next.js via 'next.config.ts' is not supported."

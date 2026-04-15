@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import ReimbursementForm, { type SecurityTokens } from '@/components/ReimbursementForm';
 import PDFPreview from '@/components/PDFPreview';
 import { initialFormData } from '@/types/form';
-import type { FormData } from '@/types/form';
+import type { FormData, ReceiptItem } from '@/types/form';
 
 const DEBOUNCE_MS = 350;
 
@@ -45,8 +45,14 @@ export default function Home() {
     setSubmitError(null);
   }, []);
 
+  const handleReceiptsChange = useCallback((receipts: ReceiptItem[]) => {
+    setFormData((prev) => ({ ...prev, receipts }));
+    setSubmitSuccess(false);
+    setSubmitError(null);
+  }, []);
+
   const handleSubmit = useCallback(
-    async (e: React.FormEvent, security: SecurityTokens) => {
+    async (e: React.FormEvent, security: SecurityTokens, receipts: ReceiptItem[]) => {
       e.preventDefault();
       setIsSubmitting(true);
       setSubmitSuccess(false);
@@ -56,7 +62,9 @@ export default function Home() {
         const res = await fetch('/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, ...security }),
+          // Use the receipts passed directly from the confirm handler (public URLs)
+          // rather than formData.receipts which may still have blob URLs
+          body: JSON.stringify({ ...formData, receipts, ...security }),
         });
 
         const json = await res.json();
@@ -82,6 +90,7 @@ export default function Home() {
         <ReimbursementForm
           data={formData}
           onChange={handleChange}
+          onReceiptsChange={handleReceiptsChange}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitSuccess={submitSuccess}

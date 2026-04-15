@@ -32,10 +32,12 @@ export default function TurnstileWidget({ onVerify, onExpire }: TurnstileWidgetP
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any)[expKey] = onExpire ?? (() => {});
 
+    const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
     const render = () => {
-      if (!containerRef.current || !window.turnstile) return;
+      if (!containerRef.current || !window.turnstile || !sitekey) return;
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
-        sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+        sitekey,
         callback: cbKey,
         'expired-callback': expKey,
         theme: 'light',

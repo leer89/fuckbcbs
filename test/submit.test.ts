@@ -45,7 +45,7 @@ beforeEach(async () => {
   const uploadSpy = vi.fn(async () => ({ error: null }));
   const getPublicUrlSpy = vi.fn(() => ({ data: { publicUrl: 'https://cdn.test/sub_1.pdf' } }));
   const insertFaxJobSpy = vi.fn(async () => ({ data: { id: 'faxjob_1' }, error: null }));
-  const updateFaxJobSpy = vi.fn(async () => ({ data: null }));
+  const updateFaxJobSpy = vi.fn(async (_payload?: unknown) => ({ data: null }));
 
   const fakeSupabase = {
     from: (table: string) => {

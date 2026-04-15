@@ -3,8 +3,9 @@
 import React, { useCallback, useState } from 'react';
 import SignaturePad from './SignaturePad';
 import TurnstileWidget from './TurnstileWidget';
-import type { FormData } from '@/types/form';
-import { LOCATION_CODES, ALL_LOCATIONS, getLocationCodes } from '@/data/locations';
+import type { FormData, ReceiptItem } from '@/types/form';
+import { ALL_LOCATIONS, getLocationCodes } from '@/data/locations';
+import { supabase } from '@/lib/supabase';
 
 export interface SecurityTokens {
   turnstileToken: string;
@@ -14,7 +15,8 @@ export interface SecurityTokens {
 interface ReimbursementFormProps {
   data: FormData;
   onChange: (field: keyof FormData, value: string | string[]) => void;
-  onSubmit: (e: React.FormEvent, security: SecurityTokens) => void;
+  onReceiptsChange: (receipts: ReceiptItem[]) => void;
+  onSubmit: (e: React.FormEvent, security: SecurityTokens, receipts: ReceiptItem[]) => void;
   isSubmitting: boolean;
   submitSuccess: boolean;
   submitError: string | null;
@@ -40,13 +42,17 @@ const textareaClass =
 export default function ReimbursementForm({
   data,
   onChange,
+  onReceiptsChange,
   onSubmit,
   isSubmitting,
   submitSuccess,
   submitError,
   isMobile,
 }: ReimbursementFormProps) {
-  const [localReceipts, setLocalReceipts] = useState<string[]>(data.receipts ?? []);
+  // Files waiting to be uploaded — keyed by their blob URL (the preview URL)
+  const pendingFilesRef = React.useRef<Map<string, File>>(new Map());
+  const [uploadingReceipts, setUploadingReceipts] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [codeQuery, setCodeQuery] = useState('');
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [honeypot, setHoneypot] = useState('');
@@ -55,6 +61,16 @@ export default function ReimbursementForm({
   const [confirmEmail, setConfirmEmail] = useState('');
   // Holds the original synthetic event reference so we can fire it after confirm
   const pendingSubmitRef = React.useRef<React.FormEvent | null>(null);
+
+  // Revoke all blob URLs when user leaves the page — nothing is stored in Supabase
+  // unless they actually complete the submit flow
+  React.useEffect(() => {
+    const files = pendingFilesRef.current;
+    return () => {
+      files.forEach((_, blobUrl) => URL.revokeObjectURL(blobUrl));
+      files.clear();
+    };
+  }, []);
 
   const handleChange = useCallback(
     (field: keyof FormData) =>
@@ -74,29 +90,39 @@ export default function ReimbursementForm({
     [onChange]
   );
 
-  const handleAddReceipts = useCallback(async (files: FileList | null) => {
-    if (!files) return;
-    const promises: Promise<string>[] = [];
+  // Store files locally as blob URLs — nothing is uploaded until the user confirms submit
+  const handleAddReceipts = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const newItems: ReceiptItem[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      promises.push(new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(String(reader.result));
-        reader.onerror = rej;
-        reader.readAsDataURL(f);
-      }));
+      const blobUrl = URL.createObjectURL(f);
+      pendingFilesRef.current.set(blobUrl, f);
+      newItems.push({
+        url: blobUrl,
+        label: f.name.replace(/\.[^.]+$/, ''),
+        name: f.name,
+      });
     }
-    const results = await Promise.all(promises);
-    const updated = [...(localReceipts || []), ...results];
-    setLocalReceipts(updated);
-    onChange('receipts' as keyof FormData, JSON.stringify(updated));
-  }, [localReceipts, onChange]);
+    onReceiptsChange([...(data.receipts ?? []), ...newItems]);
+  }, [data.receipts, onReceiptsChange]);
 
   const handleRemoveReceipt = useCallback((index: number) => {
-    const updated = localReceipts.filter((_, i) => i !== index);
-    setLocalReceipts(updated);
-    onChange('receipts' as keyof FormData, JSON.stringify(updated));
-  }, [localReceipts, onChange]);
+    const receipts = data.receipts ?? [];
+    const removed = receipts[index];
+    // Revoke the blob URL and drop the pending file if not yet uploaded
+    if (removed?.url.startsWith('blob:')) {
+      URL.revokeObjectURL(removed.url);
+      pendingFilesRef.current.delete(removed.url);
+    }
+    onReceiptsChange(receipts.filter((_, i) => i !== index));
+  }, [data.receipts, onReceiptsChange]);
+
+  const handleLabelChange = useCallback((index: number, label: string) => {
+    onReceiptsChange(
+      (data.receipts ?? []).map((r, i) => i === index ? { ...r, label } : r)
+    );
+  }, [data.receipts, onReceiptsChange]);
 
   const handleLocationChange = useCallback(
     (location: string) => {
@@ -136,16 +162,57 @@ export default function ReimbursementForm({
     [data.email]
   );
 
-  // Second click (inside modal): actually submit
-  const handleConfirmSubmit = useCallback(() => {
-    // Sync confirmed email back to form state if user edited it
+  // Second click (inside modal): upload any pending receipt files, then submit
+  const handleConfirmSubmit = useCallback(async () => {
     if (confirmEmail !== data.email) {
       onChange('email', confirmEmail);
     }
+
+    // Upload any receipts that are still blob URLs (not yet in Supabase)
+    const currentReceipts = data.receipts ?? [];
+    const hasPending = currentReceipts.some((r) => pendingFilesRef.current.has(r.url));
+
+    let uploadedReceipts = currentReceipts;
+    if (hasPending) {
+      setUploadingReceipts(true);
+      setUploadError(null);
+      const resolved: ReceiptItem[] = [];
+      const errors: string[] = [];
+      for (const receipt of currentReceipts) {
+        const file = pendingFilesRef.current.get(receipt.url);
+        if (file) {
+          const ext = file.name.split('.').pop() ?? 'bin';
+          const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error } = await supabase.storage
+            .from('receipt-uploads')
+            .upload(path, file, { contentType: file.type });
+          if (error) {
+            errors.push(file.name);
+            resolved.push(receipt); // keep blob URL as fallback (will fail server-side)
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('receipt-uploads')
+              .getPublicUrl(path);
+            URL.revokeObjectURL(receipt.url);
+            pendingFilesRef.current.delete(receipt.url);
+            resolved.push({ ...receipt, url: urlData.publicUrl });
+          }
+        } else {
+          resolved.push(receipt); // already a public URL
+        }
+      }
+      setUploadingReceipts(false);
+      if (errors.length > 0) {
+        setUploadError(`Failed to upload: ${errors.join(', ')}. Please try again.`);
+        return; // don't submit if uploads failed
+      }
+      uploadedReceipts = resolved;
+      onReceiptsChange(uploadedReceipts);
+    }
+
     setShowConfirmModal(false);
-    // Fire a synthetic submit through the normal path
-    onSubmit(pendingSubmitRef.current!, { turnstileToken, honeypot });
-  }, [confirmEmail, data.email, onChange, onSubmit, turnstileToken, honeypot]);
+    onSubmit(pendingSubmitRef.current!, { turnstileToken, honeypot }, uploadedReceipts);
+  }, [confirmEmail, data.email, data.receipts, onChange, onReceiptsChange, onSubmit, turnstileToken, honeypot]);
 
   const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
   const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
@@ -381,8 +448,7 @@ export default function ReimbursementForm({
           <p className="text-sm font-medium text-gray-700 mb-2">Attach receipts / supporting documents</p>
           {isMobile ? (
             <div className="flex gap-2">
-              {/* Camera button — triggers camera directly on mobile */}
-              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer">
+              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer hover:bg-blue-800">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                   <circle cx="12" cy="13" r="4"/>
@@ -390,13 +456,12 @@ export default function ReimbursementForm({
                 Take Photo
                 <input type="file" accept="image/*" capture="environment" multiple className="sr-only" onChange={(e) => handleAddReceipts(e.target.files)} />
               </label>
-              {/* Gallery button — opens photo library on mobile */}
-              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md cursor-pointer">
+              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md cursor-pointer hover:bg-gray-50">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
-                Choose from Gallery
+                Gallery
                 <input type="file" accept="image/*,application/pdf" multiple className="sr-only" onChange={(e) => handleAddReceipts(e.target.files)} />
               </label>
             </div>
@@ -410,22 +475,38 @@ export default function ReimbursementForm({
             </label>
           )}
 
-          {/* Receipt thumbnails */}
-          {localReceipts.length > 0 && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {localReceipts.map((r, i) => (
-                <div key={i} className="relative border rounded overflow-hidden bg-gray-50">
-                  {r.startsWith('data:image') ? (
-                    <img src={r} alt={`receipt-${i + 1}`} className="w-full h-24 object-cover" />
-                  ) : (
-                    <div className="w-full h-24 flex items-center justify-center text-xs text-gray-500">PDF {i + 1}</div>
-                  )}
+          {/* Receipt cards with label editing */}
+          {(data.receipts ?? []).length > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {(data.receipts ?? []).map((r, i) => (
+                <div key={i} className="flex gap-2 items-start border border-gray-200 rounded-md p-2 bg-gray-50">
+                  {/* Thumbnail */}
+                  <div className="flex-shrink-0 w-16 h-16 rounded overflow-hidden border border-gray-200 bg-white flex items-center justify-center">
+                    {/\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i.test(r.name) ? (
+                      <img src={r.url} alt={r.label} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-gray-400 text-center px-1">PDF</span>
+                    )}
+                  </div>
+                  {/* Label input */}
+                  <div className="flex-1 flex flex-col gap-1">
+                    <p className="text-xs text-gray-400 truncate">{r.name}</p>
+                    <input
+                      type="text"
+                      value={r.label}
+                      onChange={(e) => handleLabelChange(i, e.target.value)}
+                      placeholder="Label for this receipt…"
+                      className="w-full rounded border border-gray-300 px-2 py-1 text-xs text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  {/* Remove button */}
                   <button
                     type="button"
                     onClick={() => handleRemoveReceipt(i)}
-                    className="absolute top-1 right-1 bg-white border border-gray-300 rounded-full w-5 h-5 flex items-center justify-center text-xs text-gray-600 hover:bg-red-50"
+                    className="flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5"
+                    aria-label="Remove receipt"
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
               ))}
@@ -551,21 +632,26 @@ export default function ReimbursementForm({
               <p>4. If the fax fails, we retry up to 3 times and email you the result</p>
             </div>
 
+            {uploadError && (
+              <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{uploadError}</p>
+            )}
+
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={uploadingReceipts || isSubmitting}
+                className="flex-1 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Go back
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                disabled={!confirmEmail || isSubmitting}
+                disabled={!confirmEmail || uploadingReceipts || isSubmitting}
                 className="flex-1 py-2 rounded-md bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
               >
-                {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+                {uploadingReceipts ? 'Uploading receipts…' : isSubmitting ? 'Submitting…' : 'Confirm & Submit'}
               </button>
             </div>
           </div>

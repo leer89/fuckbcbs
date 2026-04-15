@@ -30,6 +30,11 @@ const submitSchema = z.object({
   selectedMedicalCodes: z.array(z.string().max(200)).max(100).optional().default([]),
   signatureData: z.string().optional().default(''),
   signatureDate: z.string().optional().default(''),
+  receipts: z.array(z.object({
+    url: z.string().max(500),
+    label: z.string().max(200).default(''),
+    name: z.string().max(200).default(''),
+  })).max(20).optional().default([]),
 });
 
 function getSupabase() {
