@@ -46,7 +46,7 @@ function toGrayscaleBlob(file: File): Promise<Blob> {
     const img = new window.Image();
     const blobUrl = URL.createObjectURL(file);
     img.onload = () => {
-      const maxW = 1200;
+      const maxW = 1500; // ~200 dpi at 7.5" fax page width — matches fax native resolution
       const scale = img.width > maxW ? maxW / img.width : 1;
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import { z } from 'zod';
+import { PDFDocument } from 'pdf-lib';
 import BCNPDFDocument from '@/components/BCNPDFDocument';
 import { getLocationNpi } from '@/data/locations';
 import { sendFax } from '@/lib/telnyx';
@@ -147,11 +148,37 @@ export async function POST(req: NextRequest) {
   const submissionId: string = submission.id;
 
   // ── 6. Generate PDF server-side ───────────────────────────────────────────
-  const pdfBuffer = await renderToBuffer(
+  const formPdfBuffer = await renderToBuffer(
     // renderToBuffer expects DocumentProps — our wrapper is valid at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createElement(BCNPDFDocument, { data: body as any }) as any
   );
+
+  // Merge any PDF receipts into the form PDF so the fax is one document.
+  // Non-PDF receipts (images) are already embedded as pages by BCNPDFDocument.
+  const pdfReceipts = (body.receipts ?? []).filter((r) => r.name.toLowerCase().endsWith('.pdf'));
+
+  let pdfBuffer: Buffer;
+  if (pdfReceipts.length === 0) {
+    pdfBuffer = formPdfBuffer;
+  } else {
+    const merged = await PDFDocument.load(formPdfBuffer);
+    for (const receipt of pdfReceipts) {
+      try {
+        const res = await fetch(receipt.url);
+        if (!res.ok) { console.error(`Failed to fetch PDF receipt: ${receipt.url}`); continue; }
+        const receiptBytes = await res.arrayBuffer();
+        const receiptDoc = await PDFDocument.load(receiptBytes);
+        const pageIndices = receiptDoc.getPageIndices();
+        const copiedPages = await merged.copyPages(receiptDoc, pageIndices);
+        for (const page of copiedPages) merged.addPage(page);
+      } catch (err) {
+        console.error(`Failed to merge PDF receipt ${receipt.name}:`, err);
+        // Don't abort the whole submission — just skip this attachment
+      }
+    }
+    pdfBuffer = Buffer.from(await merged.save());
+  }
 
   // ── 7. Upload PDF to Supabase Storage ─────────────────────────────────────
   const pdfPath = `${submissionId}.pdf`;
