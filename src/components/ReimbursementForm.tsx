@@ -617,13 +617,8 @@ export default function ReimbursementForm({
         </p>
       </section>
 
-      {/* Turnstile */}
-      <div>
-        <TurnstileWidget onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} />
-        {!turnstileToken && (
-          <p className="text-xs text-gray-400 mt-1">Complete the security check above to submit.</p>
-        )}
-      </div>
+      {/* Turnstile — invisible mode, auto-executes on mount */}
+      <TurnstileWidget onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} />
 
       {/* Submit */}
       <div className="flex flex-col gap-2 pb-4">

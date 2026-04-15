@@ -40,8 +40,8 @@ export default function TurnstileWidget({ onVerify, onExpire }: TurnstileWidgetP
         sitekey,
         callback: cbKey,
         'expired-callback': expKey,
-        theme: 'light',
-        size: 'normal',
+        execution: 'render',  // auto-execute on mount, no user interaction needed
+        appearance: 'always', // no visible UI rendered
       });
     };
 
