@@ -36,7 +36,7 @@ Each entry follows this structure:
 ## 2026-04-06 — Supabase client at module level breaks build
 **What happened:** Created Supabase client at top of `route.ts` using `process.env` values.
 **What was wrong:** At build time, env vars are not populated, so `createClient(undefined!, ...)` throws "supabaseUrl is required" and the build fails during "Collecting page data."
-**Correct approach:** Always initialize Supabase client *inside* the handler function, not at module level.
+**Correct approach:** Always initialize Supabase client *inside* the handler function, not at module level. For shared client code, use a lazy getter (`getSupabaseClient()`) that creates on first call. NEVER export `const supabase = createClient(...)` at module level — if any client component imports it, Next.js will run it during prerendering and crash with "Invalid supabaseUrl".
 
 ## 2026-04-06 — Zod v4 uses .issues not .errors on ZodError
 **What happened:** Used `err.errors.map(...)` to extract Zod validation messages.
