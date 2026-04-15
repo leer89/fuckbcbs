@@ -26,35 +26,35 @@ export const LOCATION_CODES: Record<string, LocationEntry> = {
   // All 8 locations bill under the same organizational NPI: 1780987990
   // NPI source: NPPES NPI Registry (npiregistry.cms.hhs.gov)
   // Codes: general urgent care CPT codes (location-specific CSV not available)
-  'Lansing Urgent Care — Frandor': {
+  'Lansing Urgent Care - Frandor': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Westside': {
+  'Lansing Urgent Care - Westside': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Southside': {
+  'Lansing Urgent Care - Southside': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Okemos': {
+  'Lansing Urgent Care - Okemos': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — DeWitt': {
+  'Lansing Urgent Care - DeWitt': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Haslett': {
+  'Lansing Urgent Care - Haslett': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Mason': {
+  'Lansing Urgent Care - Mason': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },
-  'Lansing Urgent Care — Grand Ledge': {
+  'Lansing Urgent Care - Grand Ledge': {
     npi: '1780987990',
     codes: GENERAL_URGENT_CARE_CODES,
   },

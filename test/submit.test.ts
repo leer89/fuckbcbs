@@ -28,14 +28,14 @@ vi.mock('@/data/locations', () => ({
   getLocationNpi: vi.fn((location: string) => {
     const npis: Record<string, string> = {
       'UM Health-Sparrow Lansing': '1073588711',
-      'Lansing Urgent Care — Frandor': '1780987990',
-      'Lansing Urgent Care — Westside': '1780987990',
-      'Lansing Urgent Care — Southside': '1780987990',
-      'Lansing Urgent Care — Okemos': '1780987990',
-      'Lansing Urgent Care — DeWitt': '1780987990',
-      'Lansing Urgent Care — Haslett': '1780987990',
-      'Lansing Urgent Care — Mason': '1780987990',
-      'Lansing Urgent Care — Grand Ledge': '1780987990',
+      'Lansing Urgent Care - Frandor': '1780987990',
+      'Lansing Urgent Care - Westside': '1780987990',
+      'Lansing Urgent Care - Southside': '1780987990',
+      'Lansing Urgent Care - Okemos': '1780987990',
+      'Lansing Urgent Care - DeWitt': '1780987990',
+      'Lansing Urgent Care - Haslett': '1780987990',
+      'Lansing Urgent Care - Mason': '1780987990',
+      'Lansing Urgent Care - Grand Ledge': '1780987990',
     };
     return npis[location];
   }),

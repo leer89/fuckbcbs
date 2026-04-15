@@ -267,7 +267,7 @@ function buildCommentText(data: FormData): string {
   if (data.urgentCareLocation) {
     const npi = getLocationNpi(data.urgentCareLocation);
     const locationLine = npi
-      ? `NPI ${npi} - ${data.urgentCareLocation}`
+      ? `${data.urgentCareLocation}, NPI: ${npi}`
       : data.urgentCareLocation;
     parts.push(locationLine);
     for (const code of data.selectedMedicalCodes ?? []) {

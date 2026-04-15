@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     if (urgentCareLocation) {
       const npi = getLocationNpi(urgentCareLocation);
       const locationLine = npi
-        ? `NPI ${npi} - ${urgentCareLocation}`
+        ? `${urgentCareLocation}, NPI: ${npi}`
         : urgentCareLocation;
       parts.push(locationLine);
       for (const code of selectedMedicalCodes ?? []) {
