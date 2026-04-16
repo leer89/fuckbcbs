@@ -233,34 +233,50 @@ export default function ReimbursementForm({
       setUploadError(null);
       const resolved: ReceiptItem[] = [];
       const errors: string[] = [];
-      for (const receipt of currentReceipts) {
-        const file = pendingFilesRef.current.get(receipt.url);
-        if (file) {
-          const ext = file.name.split('.').pop() ?? 'bin';
-          const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-          const sb = getSupabaseClient();
-          const { error } = await sb.storage
-            .from('receipt-uploads')
-            .upload(path, file, { contentType: file.type });
-          if (error) {
-            errors.push(file.name);
-            resolved.push(receipt); // keep blob URL as fallback (will fail server-side)
+      try {
+        const sb = getSupabaseClient();
+        for (const receipt of currentReceipts) {
+          const file = pendingFilesRef.current.get(receipt.url);
+          if (file) {
+            const ext = file.name.split('.').pop() ?? 'bin';
+            const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            // 30-second timeout per file — prevents infinite hang on bad network or missing env vars
+            const timeout = new Promise<{ error: Error }>((_res, rej) =>
+              setTimeout(() => rej(new Error(`Upload timed out: ${file.name}`)), 30_000)
+            );
+            let uploadError: unknown = null;
+            try {
+              const result = await Promise.race([
+                sb.storage.from('receipt-uploads').upload(path, file, { contentType: file.type }),
+                timeout,
+              ]) as { error: unknown };
+              uploadError = result.error;
+            } catch (err) {
+              uploadError = err;
+            }
+            if (uploadError) {
+              errors.push(file.name);
+              resolved.push(receipt);
+            } else {
+              const { data: urlData } = sb.storage.from('receipt-uploads').getPublicUrl(path);
+              URL.revokeObjectURL(receipt.url);
+              pendingFilesRef.current.delete(receipt.url);
+              resolved.push({ ...receipt, url: urlData.publicUrl });
+            }
           } else {
-            const { data: urlData } = sb.storage
-              .from('receipt-uploads')
-              .getPublicUrl(path);
-            URL.revokeObjectURL(receipt.url);
-            pendingFilesRef.current.delete(receipt.url);
-            resolved.push({ ...receipt, url: urlData.publicUrl });
+            resolved.push(receipt); // already a public URL
           }
-        } else {
-          resolved.push(receipt); // already a public URL
         }
+      } catch (err) {
+        // getSupabaseClient() threw (e.g. missing env vars) or other unexpected error
+        setUploadingReceipts(false);
+        setUploadError(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}. Check that all environment variables are configured.`);
+        return;
       }
       setUploadingReceipts(false);
       if (errors.length > 0) {
         setUploadError(`Failed to upload: ${errors.join(', ')}. Please try again.`);
-        return; // don't submit if uploads failed
+        return;
       }
       uploadedReceipts = resolved;
       onReceiptsChange(uploadedReceipts);
