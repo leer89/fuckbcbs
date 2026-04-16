@@ -18,6 +18,26 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-16 — ALL env vars must be in Vercel, not just NEXT_PUBLIC_ ones
+**What happened:** Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` were added to Vercel. The submit route also needs `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_FROM_NUMBER`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`. Missing any of these causes a 500 on submit.
+**What was wrong:** Every env var in `.env.local` has a Vercel counterpart. Forgetting server-side vars (no `NEXT_PUBLIC_` prefix) causes silent runtime crashes — they don't fail the build, they fail the request.
+**Correct approach:** When adding or changing any env var, add it to Vercel immediately. Keep the full list in CLAUDE.md. After adding vars, always trigger a redeploy.
+
+## 2026-04-16 — Submit route needs a global try/catch to surface 500 errors
+**What happened:** Any unhandled throw in the submit route returned a blank 500 with no error message. Users saw "Submission failed" with no detail; logs were only visible in Vercel function logs.
+**What was wrong:** No top-level error handler. A single uncaught throw anywhere in the pipeline (Supabase, renderToBuffer, pdf-lib, Telnyx) killed the response silently.
+**Correct approach:** Wrap the entire POST handler body in a `try/catch` that returns `{ error: err.message }` with status 500. This surfaces the real error to the client immediately without needing to dig through Vercel logs.
+
+## 2026-04-16 — Email failures were silently swallowed
+**What happened:** `sendSubmissionConfirmation` was called fire-and-forget with `.catch(console.error)`. When Resend failed (unverified domain, wrong API key), users got no confirmation email and no indication anything was wrong.
+**What was wrong:** Non-blocking fire-and-forget hides failures completely from the user. Resend requires domain verification for custom from-addresses — `noreply@makotechs.com` silently fails if `makotechs.com` isn't verified in Resend.
+**Correct approach:** `await` the email send inside a try/catch. On failure, return a `warning` field in the JSON response (not an error — fax already sent) and display it in the UI. Always verify the sending domain in Resend before using a custom from-address.
+
+## 2026-04-16 — Receipt upload hangs forever when Supabase env vars are missing
+**What happened:** Clicking "Confirm & Submit" in the modal caused the app to hang on "Uploading receipts…" indefinitely with no timeout.
+**What was wrong:** `getSupabaseClient()` throws `Invalid supabaseUrl` when `NEXT_PUBLIC_SUPABASE_URL` is undefined. The throw was not caught, so `setUploadingReceipts(false)` never ran and the modal stayed frozen forever.
+**Correct approach:** Wrap the entire upload block in try/catch/finally. Add a 30-second per-file timeout via `Promise.race` with a timeout promise. Catch throws from `getSupabaseClient()` and display the error message in the modal.
+
 ## 2026-04-14 — react-pdf Document crashes silently on empty array children
 **What happened:** Added `{(data.receipts ?? []).filter(...).map(...)}` inside `<Document>`. When receipts was empty, `.map()` returned `[]`, killing the PDFViewer (blank/black iframe, no error surfaced).
 **What was wrong:** react-pdf's reconciler does not handle `[]` (empty array) as a direct child of `<Document>`. It crashes silently — the iframe goes blank and no React error boundary catches it.
