@@ -23,10 +23,13 @@ interface ReimbursementFormProps {
   isMobile: boolean;
 }
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldGroup({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-gray-700">
+        {label}
+        {required && <span aria-hidden="true" className="text-red-500 ml-0.5">*</span>}
+      </label>
       {children}
     </div>
   );
@@ -94,6 +97,7 @@ export default function ReimbursementForm({
   const [honeypot, setHoneypot] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
   // Holds the original synthetic event reference so we can fire it after confirm
   const pendingSubmitRef = React.useRef<React.FormEvent | null>(null);
@@ -196,15 +200,21 @@ export default function ReimbursementForm({
     [data.selectedMedicalCodes, onChange]
   );
 
-  // First click: show confirmation modal
+  // First click: validate then show confirmation modal
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      if (!data.signatureData) {
+        setSignatureError(true);
+        document.getElementById('signature-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      setSignatureError(false);
       setConfirmEmail(data.email);
       pendingSubmitRef.current = e;
       setShowConfirmModal(true);
     },
-    [data.email]
+    [data.email, data.signatureData]
   );
 
   // Second click (inside modal): upload any pending receipt files, then submit
@@ -291,11 +301,14 @@ export default function ReimbursementForm({
         <p className="text-xs text-gray-500 mt-2 bg-blue-50 border border-blue-100 rounded p-2">
           I paid out of pocket and am requesting reimbursement for medical services.
         </p>
+        <p className="text-xs text-gray-400 mt-2">
+          Fields marked <span aria-hidden="true" className="text-red-500 font-medium">*</span> are required.
+        </p>
       </div>
 
       {/* Email */}
       <section>
-        <FieldGroup label="Your email address">
+        <FieldGroup label="Your email address" required>
           <input
             type="email"
             className={inputClass}
@@ -303,6 +316,7 @@ export default function ReimbursementForm({
             value={data.email}
             onChange={handleChange('email')}
             required
+            aria-required="true"
           />
         </FieldGroup>
         <p className="text-xs text-gray-400 mt-1">
@@ -317,68 +331,82 @@ export default function ReimbursementForm({
           Member Information
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Enrollee ID (on your member ID card)">
+          <FieldGroup label="Enrollee ID (on your member ID card)" required>
             <input
               type="text"
               className={inputClass}
               placeholder="e.g. XYZ123456789"
               value={data.enrolleeId}
               onChange={handleChange('enrolleeId')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
-          <FieldGroup label="Enrollee Name">
+          <FieldGroup label="Enrollee Name" required>
             <input
               type="text"
               className={inputClass}
               placeholder="Full name on ID card"
               value={data.enrolleeName}
               onChange={handleChange('enrolleeName')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
-          <FieldGroup label="Patient Name">
+          <FieldGroup label="Patient Name" required>
             <input
               type="text"
               className={inputClass}
               placeholder="Patient's full name"
               value={data.patientName}
               onChange={handleChange('patientName')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
-          <FieldGroup label="Patient Date of Birth">
+          <FieldGroup label="Patient Date of Birth" required>
             <input
               type="date"
               className={inputClass}
               value={data.patientDob}
               onChange={handleChange('patientDob')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-3 gap-3 mt-3">
-          <FieldGroup label="Address">
+          <FieldGroup label="Address" required>
             <input
               type="text"
               className={inputClass}
               placeholder="Street address"
               value={data.address}
               onChange={handleChange('address')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
-          <FieldGroup label="City">
+          <FieldGroup label="City" required>
             <input
               type="text"
               className={inputClass}
               placeholder="City"
               value={data.city}
               onChange={handleChange('city')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
-          <FieldGroup label="State / ZIP Code">
+          <FieldGroup label="State / ZIP Code" required>
             <input
               type="text"
               className={inputClass}
               placeholder="MI 49501"
               value={data.stateZip}
               onChange={handleChange('stateZip')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
         </div>
@@ -565,7 +593,7 @@ export default function ReimbursementForm({
       </section>
 
       {/* Section 3 - Signature */}
-      <section>
+      <section id="signature-section">
         <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3 flex items-center gap-2">
           <span className="w-5 h-5 bg-blue-700 text-white rounded-full flex items-center justify-center text-xs">3</span>
           Signature
@@ -573,18 +601,25 @@ export default function ReimbursementForm({
         <p className="text-xs text-gray-500 mb-3">
           The above statements and attachments are true and complete to the best of my knowledge.
         </p>
-        <SignaturePad
-          onSave={handleSignatureSave}
-          onClear={handleSignatureClear}
-          value={data.signatureData}
-        />
+        <div role="group" aria-label="Signature (required)" aria-required="true">
+          <SignaturePad
+            onSave={(url) => { handleSignatureSave(url); setSignatureError(false); }}
+            onClear={handleSignatureClear}
+            value={data.signatureData}
+          />
+          {signatureError && (
+            <p role="alert" className="text-xs text-red-600 mt-1">Signature is required before submitting.</p>
+          )}
+        </div>
         <div className="mt-3">
-          <FieldGroup label="Date">
+          <FieldGroup label="Date" required>
             <input
               type="date"
               className={`${inputClass} max-w-xs`}
               value={data.signatureDate}
               onChange={handleChange('signatureDate')}
+              required
+              aria-required="true"
             />
           </FieldGroup>
         </div>
