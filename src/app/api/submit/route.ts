@@ -69,12 +69,18 @@ async function handlePost(req: NextRequest) {
   const ip = getClientIp(req);
 
   // ── 1. Rate limit ──────────────────────────────────────────────────────────
-  const { success: withinLimit } = await ratelimit.limit(ip);
-  if (!withinLimit) {
-    return NextResponse.json(
-      { error: 'Too many submissions. Please wait an hour and try again.' },
-      { status: 429 }
-    );
+  // Fail-open: if Upstash is misconfigured or down, let the request through
+  // rather than crashing the route. Honeypot + Turnstile still protect us.
+  try {
+    const { success: withinLimit } = await ratelimit.limit(ip);
+    if (!withinLimit) {
+      return NextResponse.json(
+        { error: 'Too many submissions. Please wait an hour and try again.' },
+        { status: 429 }
+      );
+    }
+  } catch (err) {
+    console.error('Rate limit check failed (fail-open):', err);
   }
 
   // ── 2. Parse + validate body with Zod ─────────────────────────────────────
