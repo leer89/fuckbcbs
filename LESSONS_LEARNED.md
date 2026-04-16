@@ -18,6 +18,11 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-16 — Telnyx fax history is under Reporting, not a Fax nav item
+**What happened:** Told user to go to "app.telnyx.com → Fax in the left nav" to check sent faxes.
+**What was wrong:** That navigation doesn't exist. Telnyx portal does not have a standalone Fax section in the left nav.
+**Correct approach:** To check sent fax history in Telnyx: go to the Telnyx portal → **Reporting** → generate a **Fax API report**.
+
 ## 2026-04-16 — ALL env vars must be in Vercel, not just NEXT_PUBLIC_ ones
 **What happened:** Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` were added to Vercel. The submit route also needs `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_FROM_NUMBER`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`. Missing any of these causes a 500 on submit.
 **What was wrong:** Every env var in `.env.local` has a Vercel counterpart. Forgetting server-side vars (no `NEXT_PUBLIC_` prefix) causes silent runtime crashes — they don't fail the build, they fail the request.
