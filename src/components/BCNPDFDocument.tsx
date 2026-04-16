@@ -286,7 +286,6 @@ function buildCommentText(data: FormData): string {
 export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
   const allReceipts = data.receipts ?? [];
   const imageReceipts = allReceipts.filter((r) => IMAGE_EXTS.test(r.name));
-  const pdfReceipts = allReceipts.filter((r) => r.name.toLowerCase().endsWith('.pdf'));
 
   return (
     <Document title="BCN Member Reimbursement Form" author="Blue Care Network">
@@ -458,21 +457,7 @@ export default function BCNPDFDocument({ data }: BCNPDFDocumentProps) {
         </Page>
       )) : null}
 
-      {/* PDF attachment placeholder pages — react-pdf cannot embed other PDFs,
-          so we show a labeled page for each one so the fax cover reflects it. */}
-      {pdfReceipts.length > 0 ? pdfReceipts.map((r, i) => (
-        <Page key={`pdf-${i}`} size="LETTER" style={styles.page}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', marginBottom: 8 }}>
-              PDF Attachment {i + 1}{r.label ? `: ${r.label}` : ''}
-            </Text>
-            <Text style={{ fontSize: 10, color: '#555555' }}>{r.name}</Text>
-            <Text style={{ fontSize: 8, color: '#888888', marginTop: 16, textAlign: 'center' }}>
-              This PDF document is attached and will be submitted with the claim.
-            </Text>
-          </View>
-        </Page>
-      )) : null}
+      {/* PDF receipts are merged server-side via pdf-lib — no placeholder pages needed here */}
 
     </Document>
   );
