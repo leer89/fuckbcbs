@@ -54,6 +54,18 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    return await handlePost(req);
+  } catch (err) {
+    console.error('Unhandled submit error:', err);
+    return NextResponse.json(
+      { error: `Server error: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePost(req: NextRequest) {
   const ip = getClientIp(req);
 
   // ── 1. Rate limit ──────────────────────────────────────────────────────────
