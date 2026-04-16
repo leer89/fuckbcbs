@@ -50,12 +50,24 @@ export async function POST(req: NextRequest) {
     const email: string = submission?.email ?? '';
     const enrolleeName: string = submission?.enrollee_name ?? 'Member';
 
+    // Delete PDF from public storage once pipeline is done — contains PII.
+    // DB records (submission + fax_job) are kept for audit/abuse tracking.
+    const deletePdf = async () => {
+      if (!faxJob.pdf_storage_path) return;
+      const { error } = await supabase.storage
+        .from('reimbursement-pdfs')
+        .remove([faxJob.pdf_storage_path]);
+      if (error) console.error('PDF cleanup failed:', error);
+    };
+
     if (eventType === 'fax.delivered' || payload?.status === 'delivered') {
       // ── Fax delivered ────────────────────────────────────────────────────────
       await supabase
         .from('fax_jobs')
         .update({ status: 'delivered', updated_at: new Date().toISOString() })
         .eq('id', faxJob.id);
+
+      await deletePdf();
 
       if (email) {
         try {
@@ -108,9 +120,10 @@ export async function POST(req: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', faxJob.id);
+          await deletePdf();
         }
       } else {
-        // All retries exhausted
+        // All retries exhausted — delete PDF
         await supabase
           .from('fax_jobs')
           .update({
@@ -120,6 +133,7 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', faxJob.id);
+        await deletePdf();
       }
 
       if (email) {

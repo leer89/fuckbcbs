@@ -15,6 +15,7 @@ create table if not exists reimbursement_submissions (
   claim_description text not null default '',
   signature_data text,
   signature_date date,
+  submitter_ip text,
   created_at timestamptz default now()
 );
 

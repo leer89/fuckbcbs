@@ -18,6 +18,11 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-16 — PII-containing PDFs left permanently in public Supabase Storage
+**What happened:** The fax pipeline uploads the merged PDF (containing full name, DOB, address, enrollee ID, signature, insurance card, and medical records) to a public Supabase Storage bucket and never deletes it. The permanent public URL appeared in the Telnyx API response and Vercel logs.
+**What was wrong:** Public storage URLs are accessible to anyone who knows them. Even though UUIDs are unguessable in practice, sensitive medical documents must never live permanently in public storage. The URL was also leaking into third-party logs (Telnyx, Vercel).
+**Correct approach:** Delete the PDF from storage as soon as the fax pipeline is done (delivered or max retries exhausted). Keep DB records (submission ID, fax job ID, IP address, timestamps) for audit/abuse tracking — those are not publicly accessible. Always ask: "does this file need to persist after its purpose is served?"
+
 ## 2026-04-16 — Webhook route used anon key — all fax status updates silently failed
 **What happened:** The Telnyx webhook route (`/api/fax/webhook`) used `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The anon role has no SELECT policy on `fax_jobs` or `reimbursement_submissions`, so every lookup returned null, every update was a no-op, and fax delivery/failure statuses never updated. Fire-and-forget `.catch()` on the follow-up emails hid this completely.
 **What was wrong:** Every server-side route that touches Supabase must use `SUPABASE_SERVICE_ROLE_KEY`. Using the anon key server-side leaves you at the mercy of RLS policies that aren't designed for server-to-server calls. Fire-and-forget `.catch()` on any async operation that matters is unacceptable — it makes real failures invisible.

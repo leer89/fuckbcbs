@@ -159,6 +159,7 @@ async function handlePost(req: NextRequest) {
       claim_description: fullClaimDescription,
       signature_data: signatureData || null,
       signature_date: signatureDate || null,
+      submitter_ip: ip,
     }])
     .select('id')
     .single();
