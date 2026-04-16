@@ -18,6 +18,11 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-16 — Server-side API routes must use service role key, not anon key
+**What happened:** Used `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the server-side submit route. When Supabase introduced the new `sb_publishable_...` key format, the client library didn't recognize it as the `anon` role — PostgREST fell back to `public` role which has no INSERT permission, causing RLS violations.
+**What was wrong:** The anon key is a client-side key designed for browser SDKs where RLS is the trust boundary. Using it server-side is wrong regardless of key format. Server routes are already trusted code with their own security (rate limiting, validation, honeypot) — RLS adds nothing there.
+**Correct approach:** Server-side API routes (`/api/*`) must use `SUPABASE_SERVICE_ROLE_KEY` (legacy `eyJ...` JWT format, NO `NEXT_PUBLIC_` prefix). This bypasses RLS safely because the route is trusted server code. The anon key is only for client-side Supabase calls (if any). Never use `NEXT_PUBLIC_` prefix for the service role key — it must never reach the browser. New Supabase key formats (`sb_publishable_...`, `sb_secret_...`) don't work with older `@supabase/supabase-js` — always use legacy `eyJ...` JWT keys.
+
 ## 2026-04-16 — Telnyx fax history is under Reporting, not a Fax nav item
 **What happened:** Told user to go to "app.telnyx.com → Fax in the left nav" to check sent faxes.
 **What was wrong:** That navigation doesn't exist. Telnyx portal does not have a standalone Fax section in the left nav.
