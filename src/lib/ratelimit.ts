@@ -7,7 +7,7 @@ export const ratelimit = new Ratelimit({
     url: process.env.UPSTASH_REDIS_REST_URL!,
     token: process.env.UPSTASH_REDIS_REST_TOKEN!,
   }),
-  limiter: Ratelimit.slidingWindow(3, '1 h'),
+  limiter: Ratelimit.slidingWindow(3, '24 h'),
   analytics: false,
   prefix: 'bcn_submit',
 });
