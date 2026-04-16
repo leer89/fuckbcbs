@@ -635,7 +635,7 @@ export default function ReimbursementForm({
         )}
         <button
           type="submit"
-          disabled={isSubmitting || !turnstileToken}
+          disabled={isSubmitting}
           className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold rounded-md text-sm transition-colors"
         >
           {isSubmitting ? 'Saving...' : 'Save & Submit Form'}

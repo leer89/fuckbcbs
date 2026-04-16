@@ -14,7 +14,7 @@ import { verifyTurnstile } from '@/lib/turnstile';
 // ── Zod schema ────────────────────────────────────────────────────────────────
 const submitSchema = z.object({
   // Security fields (stripped before DB insert)
-  turnstileToken: z.string().min(1, 'Security check required'),
+  turnstileToken: z.string().optional().default(''),
   honeypot: z.string().max(0, 'Bot detected').optional().default(''),
 
   // Medical form fields
