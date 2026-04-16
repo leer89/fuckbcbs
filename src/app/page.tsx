@@ -74,6 +74,9 @@ export default function Home() {
         }
 
         setSubmitSuccess(true);
+        if (json.warning) {
+          setSubmitError(json.warning); // show email warning even on success
+        }
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

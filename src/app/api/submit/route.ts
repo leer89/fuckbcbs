@@ -244,16 +244,26 @@ async function handlePost(req: NextRequest) {
       .eq('id', faxJob?.id);
   }
 
-  // ── 9. Send confirmation email (non-blocking) ─────────────────────────────
+  // ── 9. Send confirmation email ────────────────────────────────────────────
+  let emailWarning: string | undefined;
   if (email) {
-    sendSubmissionConfirmation({
-      to: email,
-      enrolleeName: enrolleeName || 'Member',
-      patientName: patientName || 'Patient',
-      submissionId,
-      pdfBuffer,
-    }).catch((err) => console.error('Confirmation email error:', err));
+    try {
+      await sendSubmissionConfirmation({
+        to: email,
+        enrolleeName: enrolleeName || 'Member',
+        patientName: patientName || 'Patient',
+        submissionId,
+        pdfBuffer,
+      });
+    } catch (err) {
+      // Don't fail the whole request over email, but surface it so we know
+      console.error('Confirmation email error:', err);
+      emailWarning = `Form submitted and fax sent, but confirmation email failed: ${err instanceof Error ? err.message : String(err)}`;
+    }
   }
 
-  return NextResponse.json({ success: true, id: submissionId }, { status: 201 });
+  return NextResponse.json(
+    { success: true, id: submissionId, ...(emailWarning ? { warning: emailWarning } : {}) },
+    { status: 201 }
+  );
 }
