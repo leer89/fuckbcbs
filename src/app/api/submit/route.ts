@@ -84,13 +84,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, id: 'bot' }, { status: 200 });
   }
 
-  // ── 4. Turnstile verification ─────────────────────────────────────────────
-  const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
-  if (!turnstileOk) {
-    return NextResponse.json(
-      { error: 'Security check failed. Please refresh and try again.' },
-      { status: 403 }
-    );
+  // ── 4. Turnstile verification (best-effort) ───────────────────────────────
+  // Only verify if a token was actually issued — Turnstile's invisible mode
+  // fails on some browsers/networks (PAT 401, extensions, etc.).
+  // Rate limiting (step 1) + honeypot (step 3) are the real bot protection.
+  if (body.turnstileToken) {
+    const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
+    if (!turnstileOk) {
+      return NextResponse.json(
+        { error: 'Security check failed. Please refresh and try again.' },
+        { status: 403 }
+      );
+    }
   }
 
   // ── 5. Save submission to Supabase ────────────────────────────────────────
