@@ -8,7 +8,7 @@ const MAX_FAX_ATTEMPTS = 3;
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
 
@@ -58,11 +58,15 @@ export async function POST(req: NextRequest) {
         .eq('id', faxJob.id);
 
       if (email) {
-        sendFaxDeliveredEmail({
-          to: email,
-          enrolleeName,
-          submissionId: faxJob.submission_id,
-        }).catch((err) => console.error('Delivered email error:', err));
+        try {
+          await sendFaxDeliveredEmail({
+            to: email,
+            enrolleeName,
+            submissionId: faxJob.submission_id,
+          });
+        } catch (err) {
+          console.error('Delivered email error:', err);
+        }
       }
 
     } else if (eventType === 'fax.failed' || payload?.status === 'failed') {
@@ -119,13 +123,17 @@ export async function POST(req: NextRequest) {
       }
 
       if (email) {
-        sendFaxFailedEmail({
-          to: email,
-          enrolleeName,
-          submissionId: faxJob.submission_id,
-          attempt,
-          maxAttempts: MAX_FAX_ATTEMPTS,
-        }).catch((err) => console.error('Failed email error:', err));
+        try {
+          await sendFaxFailedEmail({
+            to: email,
+            enrolleeName,
+            submissionId: faxJob.submission_id,
+            attempt,
+            maxAttempts: MAX_FAX_ATTEMPTS,
+          });
+        } catch (err) {
+          console.error('Failed email error:', err);
+        }
       }
     }
 

@@ -18,6 +18,11 @@ Each entry follows this structure:
 
 <!-- New lessons go below this line -->
 
+## 2026-04-16 — Webhook route used anon key — all fax status updates silently failed
+**What happened:** The Telnyx webhook route (`/api/fax/webhook`) used `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The anon role has no SELECT policy on `fax_jobs` or `reimbursement_submissions`, so every lookup returned null, every update was a no-op, and fax delivery/failure statuses never updated. Fire-and-forget `.catch()` on the follow-up emails hid this completely.
+**What was wrong:** Every server-side route that touches Supabase must use `SUPABASE_SERVICE_ROLE_KEY`. Using the anon key server-side leaves you at the mercy of RLS policies that aren't designed for server-to-server calls. Fire-and-forget `.catch()` on any async operation that matters is unacceptable — it makes real failures invisible.
+**Correct approach:** All API routes use `SUPABASE_SERVICE_ROLE_KEY`. All `await` calls that can fail must be wrapped in `try/catch` — never `.catch(console.error)` on something that affects user-visible state or critical pipeline steps.
+
 ## 2026-04-16 — Server-side API routes must use service role key, not anon key
 **What happened:** Used `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the server-side submit route. When Supabase introduced the new `sb_publishable_...` key format, the client library didn't recognize it as the `anon` role — PostgREST fell back to `public` role which has no INSERT permission, causing RLS violations.
 **What was wrong:** The anon key is a client-side key designed for browser SDKs where RLS is the trust boundary. Using it server-side is wrong regardless of key format. Server routes are already trusted code with their own security (rate limiting, validation, honeypot) — RLS adds nothing there.
