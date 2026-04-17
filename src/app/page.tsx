@@ -45,6 +45,13 @@ export default function Home() {
     setSubmitError(null);
   }, []);
 
+  const handleReset = useCallback(() => {
+    setFormData(initialFormData);
+    setDebouncedData(initialFormData);
+    setSubmitSuccess(false);
+    setSubmitError(null);
+  }, []);
+
   const handleReceiptsChange = useCallback((receipts: ReceiptItem[]) => {
     setFormData((prev) => ({ ...prev, receipts }));
     setSubmitSuccess(false);
@@ -95,6 +102,7 @@ export default function Home() {
           onChange={handleChange}
           onReceiptsChange={handleReceiptsChange}
           onSubmit={handleSubmit}
+          onReset={handleReset}
           isSubmitting={isSubmitting}
           submitSuccess={submitSuccess}
           submitError={submitError}

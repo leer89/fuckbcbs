@@ -17,6 +17,7 @@ interface ReimbursementFormProps {
   onChange: (field: keyof FormData, value: string | string[]) => void;
   onReceiptsChange: (receipts: ReceiptItem[]) => void;
   onSubmit: (e: React.FormEvent, security: SecurityTokens, receipts: ReceiptItem[]) => void;
+  onReset: () => void;
   isSubmitting: boolean;
   submitSuccess: boolean;
   submitError: string | null;
@@ -83,6 +84,7 @@ export default function ReimbursementForm({
   onChange,
   onReceiptsChange,
   onSubmit,
+  onReset,
   isSubmitting,
   submitSuccess,
   submitError,
@@ -671,15 +673,41 @@ export default function ReimbursementForm({
       {/* Turnstile — invisible mode, auto-executes on mount */}
       <TurnstileWidget onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} />
 
+      {/* Success modal */}
+      {submitSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Form Submitted Successfully</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Your reimbursement form is being faxed to BCN now. Fax transmission typically takes <strong>2–5 minutes</strong>.
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              Keep an eye on your email — you'll receive a confirmation once BCN's fax machine confirms receipt.
+            </p>
+            {submitError && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 mb-4 text-left">
+                {submitError}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onReset}
+              className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-md text-sm transition-colors"
+            >
+              Submit Another Form
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Submit */}
       <div className="flex flex-col gap-2 pb-4">
-        {submitSuccess && (
-          <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md p-3">
-            ✓ Form submitted successfully. BCN will be faxed your claim and you will receive a confirmation email.
-            {!isMobile && ' Use "Download PDF" in the preview panel to save a copy.'}
-          </div>
-        )}
-        {submitError && (
+        {submitError && !submitSuccess && (
           <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
             Error: {submitError}
           </div>
