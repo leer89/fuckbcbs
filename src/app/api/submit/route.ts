@@ -237,6 +237,7 @@ async function handlePost(req: NextRequest) {
 
   const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/fax/webhook`;
 
+  let faxWarning: string | undefined;
   try {
     const faxResult = await sendFax({ mediaUrl: urlData.publicUrl, webhookUrl });
     await supabase
@@ -249,6 +250,7 @@ async function handlePost(req: NextRequest) {
       .from('fax_jobs')
       .update({ status: 'failed', error_message: String(faxError) })
       .eq('id', faxJob?.id);
+    faxWarning = `Form submitted but fax failed to send: ${faxError instanceof Error ? faxError.message : String(faxError)}. Please fax manually to 1-866-637-4972 or mail to BCN Member Reimbursements - G802, Grand Rapids, MI 49516-8767.`;
   }
 
   // ── 9. Send confirmation email ────────────────────────────────────────────
@@ -261,16 +263,17 @@ async function handlePost(req: NextRequest) {
         patientName: patientName || 'Patient',
         submissionId,
         pdfBuffer,
+        faxFailed: !!faxWarning,
       });
     } catch (err) {
-      // Don't fail the whole request over email, but surface it so we know
       console.error('Confirmation email error:', err);
-      emailWarning = `Form submitted and fax sent, but confirmation email failed: ${err instanceof Error ? err.message : String(err)}`;
+      emailWarning = `Confirmation email failed: ${err instanceof Error ? err.message : String(err)}`;
     }
   }
 
+  const warning = faxWarning ?? emailWarning;
   return NextResponse.json(
-    { success: true, id: submissionId, ...(emailWarning ? { warning: emailWarning } : {}) },
+    { success: true, id: submissionId, ...(warning ? { warning } : {}) },
     { status: 201 }
   );
 }
