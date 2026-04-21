@@ -5,16 +5,7 @@
 create table if not exists reimbursement_submissions (
   id uuid default gen_random_uuid() primary key,
   email text not null default '',
-  enrollee_id text not null default '',
   enrollee_name text not null default '',
-  patient_name text not null default '',
-  patient_dob date,
-  address text not null default '',
-  city text not null default '',
-  state_zip text not null default '',
-  claim_description text not null default '',
-  signature_data text,
-  signature_date date,
   submitter_ip text,
   created_at timestamptz default now()
 );

@@ -5,7 +5,6 @@ import { createElement } from 'react';
 import { z } from 'zod';
 import { PDFDocument } from 'pdf-lib';
 import BCNPDFDocument from '@/components/BCNPDFDocument';
-import { getLocationNpi } from '@/data/locations';
 import { sendFax } from '@/lib/telnyx';
 import { sendSubmissionConfirmation } from '@/lib/email';
 import { ratelimit } from '@/lib/ratelimit';
@@ -118,47 +117,13 @@ async function handlePost(req: NextRequest) {
 
   // ── 5. Save submission to Supabase ────────────────────────────────────────
   const supabase = getSupabase();
-  const {
-    email, enrolleeId, enrolleeName, patientName,
-    patientDob, address, city, stateZip,
-    claimDescription, urgentCareLocation, selectedMedicalCodes,
-    signatureData, signatureDate,
-  } = body;
-
-  // Compose the full claim description from structured + free-text fields
-  const fullClaimDescription = (() => {
-    const parts: string[] = [];
-    if (urgentCareLocation) {
-      const npi = getLocationNpi(urgentCareLocation);
-      const locationLine = npi
-        ? `${urgentCareLocation}, NPI: ${npi}`
-        : urgentCareLocation;
-      parts.push(locationLine);
-      for (const code of selectedMedicalCodes ?? []) {
-        parts.push(`- ${code}`);
-      }
-    }
-    if (claimDescription?.trim()) {
-      if (parts.length > 0) parts.push('');
-      parts.push(claimDescription.trim());
-    }
-    return parts.join('\n');
-  })();
+  const { email, enrolleeName, patientName } = body;
 
   const { data: submission, error: submissionError } = await supabase
     .from('reimbursement_submissions')
     .insert([{
       email,
-      enrollee_id: enrolleeId,
       enrollee_name: enrolleeName,
-      patient_name: patientName,
-      patient_dob: patientDob || null,
-      address,
-      city,
-      state_zip: stateZip,
-      claim_description: fullClaimDescription,
-      signature_data: signatureData || null,
-      signature_date: signatureDate || null,
       submitter_ip: ip,
     }])
     .select('id')
